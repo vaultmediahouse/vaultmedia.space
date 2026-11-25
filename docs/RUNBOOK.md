@@ -92,6 +92,14 @@ Add a secret without seeing it (repeat per environment):
 openssl rand -hex 32 | tr -d '\n' | vercel env add CRON_SECRET production --sensitive
 ```
 
+For **Preview**, a piped value can't answer the "Git branch?" prompt; pass `""` (all branches) and use a temp file:
+
+```bash
+openssl rand -hex 32 | tr -d '\n' > /tmp/s && vercel env add CRON_SECRET preview "" --sensitive < /tmp/s; rm -f /tmp/s
+```
+
+Status 26 Nov 2026: `APP_SECRET` and `CRON_SECRET` set for Production and Preview.
+
 Note: `vercel link`, `vercel blob create-store` and `vercel integration add` (without `--no-env-pull`) rewrite `.env.local` from the Development environment; local values are kept but comments are dropped.
 
 ## Troubleshooting a failed deploy
