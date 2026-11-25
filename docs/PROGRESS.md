@@ -4,7 +4,7 @@ Last updated: 25 Nov 2026. Status of every PRD section ([PRD.md](PRD.md)). Legen
 
 ## Summary
 
-Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). Vercel-ready since v0.2.0 (Blob storage, schedule, build-time migrations) but **not deployed yet** — see RUNBOOK "Deploying to Vercel".
+Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). Vercel-ready since v0.2.0 (Blob storage, schedule, build-time migrations) but **not deployed yet**: the first deployment (25 Nov, `a849d78`) failed; v0.2.1 fixes the build (lazy DB connection, accepted database URL names, D-015). Redeploy after connecting a database — see RUNBOOK "Deploying to Vercel".
 
 ## PRD §15 acceptance criteria
 
@@ -30,7 +30,7 @@ Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export
 | 5 | Admin dashboard: home, clients, work (table + kanban + filters + bulk), leads, billing, documents, settings | ✅ | |
 | 6 | Client dashboard: home, my work, my leads, billing, documents | ✅ | |
 | 7 | Document Manager: templates with variables, editor + preview, PDF, send, share link, statuses, e-acceptance, versions, required-docs checklist, block-work rule | ✅ | Editor is Markdown with live preview, not WYSIWYG (D-006). Templates need a lawyer's review before real use. |
-| 7A | Credentials: no signup, temp password, forced change, bcrypt, reset/deactivate, rate limit, idle timeout | ✅ | Magic link / Telegram login: ⬜ (optional later). |
+| 7A | Credentials: no signup, temp password (generated, or chosen by Admin — D-016), forced change, bcrypt, reset/deactivate, rate limit, idle timeout | ✅ | Magic link / Telegram login: ⬜ (optional later). |
 | 8 | Notifications: in-app + email; WhatsApp/Telegram copy-and-send | ✅ | Email needs `RESEND_API_KEY`; otherwise logged to the server console. Telegram bot: ⬜ (v2). |
 | 9 | Data model | ✅ | See [DATABASE.md](DATABASE.md) for additions beyond the PRD. |
 | 10 | Key screens | ✅ | |
@@ -46,6 +46,14 @@ Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export
 - v0.2.0: real file upload through the UI on the local driver; signed link returns the file, a tampered signature returns 403.
 - Manual browser run (local, demo data): admin first login + forced password change; create client login + credentials message; create and submit Work Item; client login + forced change; client approval → Sanctioned; generate weekly invoice; invoice page; invoice PDF and document PDF return valid PDFs; ledger CSV totals match; NDA created from template with variables filled; phone width has no page-level horizontal scroll.
 - Not verified by hand in the browser (covered by integration tests only): delivery → acceptance → revision UI, document acceptance UI, lead status UI clicks, CSV upload UI, cron endpoint call, email via Resend.
+
+## Verified on 25 Nov 2026 (v0.2.1)
+
+- Clean clone with **no environment variables**: `next build` succeeds (failed before with "DATABASE_URL is not set"); `drizzle-kit migrate` stops with the clear "No database URL found" message.
+- `npm run typecheck`, `npm run lint` clean; 32 unit + 13 integration tests pass (45).
+- Browser (local): admin sign-in → add client → create login with generated password → client sign-in → forced password change → client dashboard and "Request new work" form; create a second login with an Admin-chosen password. Test data removed afterwards.
+- `/api/cron/daily`: 401 without the secret; `ok: true` with it.
+- Vercel build logs for the failed deployment were **not read** (CLI token invalid on this Mac); the fix is based on reproducing the build locally. Confirm on the next deploy.
 
 ## Known gaps and risks
 

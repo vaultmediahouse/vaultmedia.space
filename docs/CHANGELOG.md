@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 25 Nov 2026
+Fix the failed Vercel deployment (`dpl_6ZrFabXYB3rwW98cNPahQLsHzXBE`, commit `a849d78`) and let Admin choose a client's first password.
+- Build no longer needs a database: the Postgres pool opens on first query instead of at import. Before, `next build` crashed with "DATABASE_URL is not set" while collecting page data for `/api/cron/daily` (reproduced in a clean copy with no env vars).
+- Database URL is read from `DATABASE_URL`, or the names Neon/Supabase integrations set (`POSTGRES_URL`, `DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NON_POOLING`, `POSTGRES_PRISMA_URL`). Migrations prefer the direct (non-pooled) URL. If none is set, `drizzle-kit migrate` stops with a clear message instead of "url: undefined".
+- Admin → client → Create login has an optional password field; blank still generates a strong temporary password. The client must change it at first sign-in either way.
+- Tests: 32 unit + 13 integration = 45.
+
 ## 0.2.0 — 25 Nov 2026
 Vercel readiness.
 - File storage: private Vercel Blob driver, chosen automatically when a Blob store is connected; local disk stays the default elsewhere. Downloads still go through signed, expiring links.

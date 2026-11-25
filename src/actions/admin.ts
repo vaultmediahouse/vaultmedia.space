@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { requireAdmin, hashPassword, destroyAllSessionsFor } from "@/lib/auth";
+import { requireAdmin, hashPassword, destroyAllSessionsFor, passwordProblems } from "@/lib/auth";
 import { tempPassword } from "@/lib/crypto";
 import { audit } from "@/lib/audit";
 import { fail, int, ok, str, type ActionState } from "@/lib/action";
@@ -126,13 +126,19 @@ export async function createClientUserAction(_: ActionState, fd: FormData): Prom
   const name = str(fd, "name").trim();
   const username = str(fd, "username").trim().toLowerCase();
   const email = str(fd, "email").trim() || null;
+  // Optional: the admin may choose the first password; otherwise a strong one is generated (D-016).
+  const chosen = str(fd, "password").trim();
   if (!name) return fail("Enter the person's name.");
   if (!USERNAME_RE.test(username)) return fail("Username: 3–32 characters, lowercase letters, numbers, dot, dash or underscore.");
   const count = await db.$count(schema.users, and(eq(schema.users.clientId, clientId), eq(schema.users.active, true)));
   if (count >= 3) return fail("A client can have at most 3 active logins (PRD §3). Deactivate one first.");
   const taken = await db.query.users.findFirst({ where: eq(schema.users.username, username) });
   if (taken) return fail("That username is taken.");
-  const password = tempPassword();
+  if (chosen) {
+    const problem = passwordProblems(chosen);
+    if (problem) return fail(`Password: ${problem}`);
+  }
+  const password = chosen || tempPassword();
   const [user] = await db
     .insert(schema.users)
     .values({ role: "client", name, username, email, clientId, passwordHash: await hashPassword(password), mustChangePassword: true })

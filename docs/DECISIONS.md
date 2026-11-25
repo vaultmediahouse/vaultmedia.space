@@ -41,6 +41,12 @@ No background worker. `runAutoAccept()` runs on dashboard/billing loads and in `
 ## D-013 Vercel Blob (private) as the production file store (25 Nov 2026)
 Vercel functions have no persistent disk. `src/lib/storage.ts` now picks a driver at runtime: private Vercel Blob when `BLOB_READ_WRITE_TOKEN` or `BLOB_STORE_ID` is set, local disk otherwise. Blobs are private and never linked directly; `/api/files/[key]` checks the HMAC-signed, expiring link and streams the blob server-side, so the access model is identical on both drivers. Keys are stored under `vmh-uploads/<key>`. Existing local files are not migrated automatically (none exist in production yet).
 
+## D-015 Lazy database connection and accepted database URL names (25 Nov 2026)
+The first Vercel deployment failed. `src/db/index.ts` created the pool at import and threw when `DATABASE_URL` was missing, which breaks `next build` page-data collection; and Marketplace Postgres integrations may set `POSTGRES_URL` etc. instead of `DATABASE_URL`. Now `db` is a proxy that opens the pool on first use, and `src/db/url.ts` resolves the URL from a fixed list of names (app: pooled first; migrations: direct first). A missing URL still fails the deploy at the migrate step, on purpose: deploying without tables would give a broken site.
+
+## D-016 Admin may choose a client's first password (25 Nov 2026)
+Chief asked to create a client with an ID and password and hand them over. The Create login form takes an optional password (same strength rule as user-chosen passwords: 10+ chars, letters and a number). It is still marked temporary, so the client must set their own at first sign-in; generated passwords stay the default.
+
 ## D-014 Vercel deployment: path schedule + migrations in `vercel-build` (25 Nov 2026)
 - The daily job is a Vercel **path** schedule (`vercel.json`, 09:00 Asia/Kolkata, GET `/api/cron/daily`) protected by `CRON_SECRET`, not a private `function` target. Reasons: the route already exists and also serves VPS/crontab hosting, and the Next.js function output path for a `function` target could not be verified without a linked project. Trade-off: the route is public and relies on the secret. Possible later move to a `function` target with `handleSchedule` (keep the schedule name `daily-billing`).
 - `npm run vercel-build` = `drizzle-kit migrate && next build`, so every deployment applies pending migrations to its `DATABASE_URL` before building. Consequence: **Preview deployments must use a separate database** (or a Neon branch), otherwise a preview build migrates production.

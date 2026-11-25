@@ -89,12 +89,14 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           )}
           <ActionForm action={createClientUserAction} hidden={{ clientId: id }} resetOnSuccess className="space-y-3 rounded-md bg-slate-50 p-3">
             <div className="text-sm font-medium">Create login</div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Input name="name" placeholder="Person's name" required defaultValue={users.length === 0 ? client.contactName ?? "" : ""} />
               <Input name="username" placeholder="username" required autoCapitalize="none" pattern="[a-z0-9][a-z0-9._\-]{2,31}" title="lowercase letters, numbers, . _ -" />
               <Input name="email" type="email" placeholder="email (optional)" />
+              <Input name="password" placeholder="password (optional — blank = generate)" autoComplete="off" autoCapitalize="none" minLength={10} />
             </div>
-            <SubmitButton>Create login + temporary password</SubmitButton>
+            <p className="text-xs text-muted">Min. 10 characters with letters and a number. The client must change it at first sign-in.</p>
+            <SubmitButton>Create login</SubmitButton>
           </ActionForm>
         </Card>
 

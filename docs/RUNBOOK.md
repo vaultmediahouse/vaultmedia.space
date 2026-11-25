@@ -29,7 +29,7 @@ TEST_DATABASE_URL=postgres://USER@localhost:5432/vaultportal_test npm test   # +
 
 | Name | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | Postgres connection. Add `?sslmode=require` for hosted DBs. |
+| `DATABASE_URL` | yes | Postgres connection. Add `?sslmode=require` for hosted DBs. Also accepted (D-015): `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NON_POOLING`; migrations prefer the unpooled one. |
 | `APP_SECRET` | yes | Signs file links and webhook tokens. Changing it invalidates existing links/webhook URLs. |
 | `APP_URL` | recommended | Public base URL used in share links and credential messages. Falls back to the Vercel production domain. |
 | `CRON_SECRET` | yes | Bearer token for `/api/cron/daily`. |
@@ -43,7 +43,7 @@ TEST_DATABASE_URL=postgres://USER@localhost:5432/vaultportal_test npm test   # +
 1. Sign in as `chief` with the seed password; set your own.
 2. Admin → Settings: address, GSTIN and GST toggle (open question PRD §16.1), UPI ID, bank details, cut-off, auto-accept window.
 3. Admin → Documents → Templates: have a lawyer review once.
-4. Admin → Clients → Add client → set rate card → Create login → send the message on WhatsApp.
+4. Admin → Clients → Add client → set rate card → Create login (choose the username; type a password or leave it blank to generate one) → send the message on WhatsApp.
 5. Create Contract, SOW, NDA, DPA and Deposit documents from templates and send them.
 
 ## Scheduled job
@@ -60,7 +60,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR_DOMAIN/api/cron/daily
 ## Deploying to Vercel
 
 1. **Import the repo:** vercel.com → Add New → Project → `vaultmediahouse/vaultmedia.space`. Framework: Next.js (auto). Vercel runs `npm run vercel-build`, which applies migrations, then builds.
-2. **Database:** Project → Storage → create/connect **Neon** or **Supabase** Postgres (Vercel Marketplace). Make sure `DATABASE_URL` is set for Production (add `?sslmode=require` if the provider's URL lacks it). Turn on the provider's daily backups (PRD §12). For **Preview**, point `DATABASE_URL` to a separate database or Neon branch — preview builds also run migrations (D-014).
+2. **Database:** Project → Storage → create/connect **Neon** or **Supabase** Postgres (Vercel Marketplace). Make sure `DATABASE_URL` (or the integration's `POSTGRES_URL`) is set for Production **and for Preview** — without it the build stops at "No database URL found" (add `?sslmode=require` if the provider's URL lacks it). Turn on the provider's daily backups (PRD §12). For **Preview**, point `DATABASE_URL` to a separate database or Neon branch — preview builds also run migrations (D-014).
 3. **File storage:** Project → Storage → create a **Blob** store (private) and connect it. This sets `BLOB_STORE_ID` (OIDC) or `BLOB_READ_WRITE_TOKEN`; uploads then go to Blob automatically.
 4. **Environment variables** (Project → Settings → Environment Variables, Production):
    - `APP_SECRET` — `openssl rand -hex 32` (new value; don't reuse the local one)
@@ -81,6 +81,12 @@ DATABASE_URL="<production url>" SEED_ADMIN_USERNAME=chief npx tsx scripts/seed.t
 ## Deploying to a VPS
 
 `npm ci && npm run build && npm run db:migrate && npm start` behind Nginx/Caddy with HTTPS. Leave Blob variables unset so files go to a persistent `STORAGE_DIR`. Back up the database daily (`pg_dump`) and the storage folder.
+
+## Troubleshooting a failed deploy
+
+- GitHub shows the Vercel status on each commit; the CLI shows logs: `vercel inspect <deployment-url-or-id> --logs` (needs `vercel login`; an old `VERCEL_TOKEN` in `~/.zshrc` overrides the login and makes the CLI say "token is not valid": remove it or replace it).
+- "No database URL found" → the environment being built (Production or Preview) has no database variable; connect the database to that environment and redeploy.
+- Reproduce locally without env vars: `env -i PATH=$PATH HOME=$HOME npx next build` in a clean clone must succeed (D-015).
 
 ## Common tasks
 
