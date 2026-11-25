@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- `vercel.json`: functions run in `sin1` (Singapore), next to the Neon database (D-017).
+
 ## 0.2.1 — 25 Nov 2026
 Fix the failed Vercel deployment (`dpl_6ZrFabXYB3rwW98cNPahQLsHzXBE`, commit `a849d78`) and let Admin choose a client's first password.
 - Build no longer needs a database: the Postgres pool opens on first query instead of at import. Before, `next build` crashed with "DATABASE_URL is not set" while collecting page data for `/api/cron/daily` (reproduced in a clean copy with no env vars).

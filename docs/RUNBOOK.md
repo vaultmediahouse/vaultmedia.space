@@ -82,6 +82,18 @@ DATABASE_URL="<production url>" SEED_ADMIN_USERNAME=chief npx tsx scripts/seed.t
 
 `npm ci && npm run build && npm run db:migrate && npm start` behind Nginx/Caddy with HTTPS. Leave Blob variables unset so files go to a persistent `STORAGE_DIR`. Back up the database daily (`pg_dump`) and the storage folder.
 
+## Current Vercel setup (26 Nov 2026)
+
+Team `vault-media-house`, project `vaultmedia.space`; this Mac is linked (`.vercel/`, gitignored). Resources and env vars: see DECISIONS D-017. Production env: Neon variables (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `POSTGRES_*`, `PG*`), `BLOB_READ_WRITE_TOKEN`, `APP_SECRET`, `CRON_SECRET`, `EMAIL_FROM`, `SEED_ADMIN_USERNAME`. `APP_URL` is unset (links use the Vercel production domain) until a custom domain is added. Never import `.env.local` into Vercel: it holds local-only values.
+
+Add a secret without seeing it (repeat per environment):
+
+```bash
+openssl rand -hex 32 | tr -d '\n' | vercel env add CRON_SECRET production --sensitive
+```
+
+Note: `vercel link`, `vercel blob create-store` and `vercel integration add` (without `--no-env-pull`) rewrite `.env.local` from the Development environment; local values are kept but comments are dropped.
+
 ## Troubleshooting a failed deploy
 
 - GitHub shows the Vercel status on each commit; the CLI shows logs: `vercel inspect <deployment-url-or-id> --logs` (needs `vercel login`; an old `VERCEL_TOKEN` in `~/.zshrc` overrides the login and makes the CLI say "token is not valid": remove it or replace it).

@@ -47,6 +47,13 @@ The first Vercel deployment failed. `src/db/index.ts` created the pool at import
 ## D-016 Admin may choose a client's first password (25 Nov 2026)
 Chief asked to create a client with an ID and password and hand them over. The Create login form takes an optional password (same strength rule as user-chosen passwords: 10+ chars, letters and a number). It is still marked temporary, so the client must set their own at first sign-in; generated passwords stay the default.
 
+## D-017 Vercel resources: Neon (Singapore), separate Preview DB, functions in sin1 (26 Nov 2026)
+- Production database: Neon `vmh-prod` (free plan, region `sin1`, Neon Auth off — the portal has its own logins), connected to the **Production** environment only.
+- Preview database: a separate Neon `vmh-preview` (same settings), connected to **Preview** only, so preview builds' migrations never touch production (D-014).
+- Files: private Blob store `vmh-files` (region `sin1`), connected to Production and Preview (sets `BLOB_READ_WRITE_TOKEN`). Preview uploads land in the same store under random keys; acceptable for now.
+- `vercel.json` `regions: ["sin1"]`: functions run next to the database (Vercel's default `iad1` would add a US round trip to every query). Singapore is the closest region to India that both Neon and Vercel offer.
+- Secrets (`APP_SECRET`, `CRON_SECRET`) are generated per environment with `openssl rand -hex 32` piped into `vercel env add … --sensitive`, never printed. Values imported from `.env.local` were removed (they pointed at localhost and included the exposed `CRON_SECRET`).
+
 ## D-014 Vercel deployment: path schedule + migrations in `vercel-build` (25 Nov 2026)
 - The daily job is a Vercel **path** schedule (`vercel.json`, 09:00 Asia/Kolkata, GET `/api/cron/daily`) protected by `CRON_SECRET`, not a private `function` target. Reasons: the route already exists and also serves VPS/crontab hosting, and the Next.js function output path for a `function` target could not be verified without a linked project. Trade-off: the route is public and relies on the secret. Possible later move to a `function` target with `handleSchedule` (keep the schedule name `daily-billing`).
 - `npm run vercel-build` = `drizzle-kit migrate && next build`, so every deployment applies pending migrations to its `DATABASE_URL` before building. Consequence: **Preview deployments must use a separate database** (or a Neon branch), otherwise a preview build migrates production.
