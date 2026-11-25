@@ -4,7 +4,7 @@ Last updated: 25 Nov 2026. Status of every PRD section ([PRD.md](PRD.md)). Legen
 
 ## Summary
 
-Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is committed locally on `main` (initial commit, 25 Nov 2026) but **not pushed** (the GitHub repo is public — decide before pushing, see [DECISIONS.md](DECISIONS.md) D-012).
+Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). **Not yet deployable to Vercel as-is:** file uploads use local disk (ROADMAP item 1).
 
 ## PRD §15 acceptance criteria
 

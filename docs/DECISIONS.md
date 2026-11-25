@@ -36,4 +36,4 @@ No background worker. `runAutoAccept()` runs on dashboard/billing loads and in `
 `src/lib/storage.ts` is the only module that touches files; downloads use HMAC-signed expiring URLs. Local disk is enough for development and a VPS. Must be swapped for object storage before deploying to a serverless host (ROADMAP item 1). Uploads are capped at 4 MB; larger creatives are shared as links (Drive/Canva/WeTransfer).
 
 ## D-012 Repository is public — PRD and pricing (25 Nov 2026)
-`vaultmediahouse/vaultmedia.space` is a public GitHub repo. `docs/PRD.md` contains the rate card and the first client's description. No secrets are committed (`.env*` is gitignored except `.env.example`). **Open:** Chief to decide whether to make the repo private or remove `docs/PRD.md` before pushing.
+`vaultmediahouse/vaultmedia.space` is a public GitHub repo. `docs/PRD.md` contains the rate card and the first client's description. No secrets are committed (`.env*` is gitignored except `.env.example`). Chief chose to push to the public repo on 25 Nov 2026, so the PRD is public. Making the repo private later is still possible but the content may already be cached.
