@@ -22,6 +22,7 @@ import { latestDocuments, requiredDocsStatus } from "@/server/documents";
 import { openWeekPayable } from "@/server/queries";
 import { sign } from "@/lib/crypto";
 import { CopyButton } from "@/components/copy-button";
+import { appUrl } from "@/lib/app-url";
 
 export const metadata: Metadata = { title: "Client" };
 
@@ -41,7 +42,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   const outstanding = invoices.filter((i) => i.status === "sent" || i.status === "payment_submitted").reduce((s, i) => s + i.total, 0);
   const done = checklist.filter((c) => c.state === "accepted").length;
   const today = istDate(new Date());
-  const webhookUrl = `${process.env.APP_URL ?? ""}/api/leads/webhook/${id}?token=${sign(`lead-webhook:${id}`)}`;
+  const webhookUrl = `${appUrl()}/api/leads/webhook/${id}?token=${sign(`lead-webhook:${id}`)}`;
   const [activeItems] = await Promise.all([
     db.$count(schema.workItems, and(eq(schema.workItems.clientId, id), inArray(schema.workItems.status, ["proposed", "sanctioned", "in_progress", "delivered", "revision_requested"]))),
   ]);

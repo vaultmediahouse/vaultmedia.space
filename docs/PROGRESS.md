@@ -4,7 +4,7 @@ Last updated: 25 Nov 2026. Status of every PRD section ([PRD.md](PRD.md)). Legen
 
 ## Summary
 
-Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). **Not yet deployable to Vercel as-is:** file uploads use local disk (ROADMAP item 1).
+Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). Vercel-ready since v0.2.0 (Blob storage, schedule, build-time migrations) but **not deployed yet** — see RUNBOOK "Deploying to Vercel".
 
 ## PRD §15 acceptance criteria
 
@@ -42,13 +42,14 @@ Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export
 ## Verified on 25 Nov 2026
 
 - `npm run typecheck`, `npm run lint`: clean.
-- `npm test`: 24 unit tests pass. With `TEST_DATABASE_URL` set: 13 integration tests also pass (37 total).
+- `npm test`: 28 unit tests pass (incl. storage drivers). With `TEST_DATABASE_URL` set: 13 integration tests also pass (41 total). Production build clean.
+- v0.2.0: real file upload through the UI on the local driver; signed link returns the file, a tampered signature returns 403.
 - Manual browser run (local, demo data): admin first login + forced password change; create client login + credentials message; create and submit Work Item; client login + forced change; client approval → Sanctioned; generate weekly invoice; invoice page; invoice PDF and document PDF return valid PDFs; ledger CSV totals match; NDA created from template with variables filled; phone width has no page-level horizontal scroll.
 - Not verified by hand in the browser (covered by integration tests only): delivery → acceptance → revision UI, document acceptance UI, lead status UI clicks, CSV upload UI, cron endpoint call, email via Resend.
 
 ## Known gaps and risks
 
-1. **File storage is local disk** (`STORAGE_DIR`). Fine on a VPS; on Vercel uploads would be lost. Swap to Vercel Blob (private) / S3 before a serverless deploy — see ROADMAP.
-2. **Not deployed**; cron and backups are not configured.
+1. **Blob driver tested with a mocked SDK only** (tests/storage.test.ts); first real upload on Vercel should be checked by hand after deploy.
+2. **Not deployed**; database backups depend on the chosen Postgres provider.
 3. Legal templates are drafts, not legal advice.
 4. No automated browser (E2E) tests yet.

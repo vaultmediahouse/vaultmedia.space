@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { appUrl } from "@/lib/app-url";
 
 /**
  * Notifications (PRD §8). v1 channels: in-app (notifications table) + email.
@@ -70,7 +71,7 @@ export async function notify(
 }
 
 async function sendEmail(to: string[], subject: string, href?: string) {
-  const base = process.env.APP_URL ?? "http://localhost:3000";
+  const base = appUrl();
   const link = href ? `${base}${href}` : base;
   const key = process.env.RESEND_API_KEY;
   if (!key) {

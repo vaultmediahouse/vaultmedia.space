@@ -14,6 +14,7 @@ import { renderMarkdown } from "@/lib/markdown";
 import { signedFileUrl } from "@/lib/storage";
 import { DOC_TYPE_LABEL } from "@/lib/templates";
 import { formatISTDateTime } from "@/lib/week";
+import { appUrl } from "@/lib/app-url";
 
 export const metadata: Metadata = { title: "Document" };
 
@@ -26,7 +27,7 @@ export default async function AdminDocument({ params }: { params: Promise<{ id: 
   const client = await db.query.clients.findFirst({ where: eq(schema.clients.id, doc.clientId) });
   const versions = await db.select().from(schema.documents).where(eq(schema.documents.groupId, doc.groupId)).orderBy(desc(schema.documents.version));
   const log = await db.select().from(schema.activityLog).where(and(eq(schema.activityLog.entity, "document"), eq(schema.activityLog.entityId, id))).orderBy(desc(schema.activityLog.createdAt));
-  const link = `${process.env.APP_URL ?? ""}/d/${doc.shareToken}`;
+  const link = `${appUrl()}/d/${doc.shareToken}`;
   const message = `Hi ${client?.contactName ?? ""}, please review and accept "${doc.title}" in the Vault Media House portal: ${link}`;
   const locked = doc.status === "accepted";
   const old = !!doc.supersededBy;

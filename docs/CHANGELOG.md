@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 25 Nov 2026
+Vercel readiness.
+- File storage: private Vercel Blob driver, chosen automatically when a Blob store is connected; local disk stays the default elsewhere. Downloads still go through signed, expiring links.
+- `vercel.json` schedule `daily-billing` (09:00 IST) for `/api/cron/daily`.
+- `vercel-build` script runs database migrations before `next build`.
+- Links in messages fall back to the Vercel production domain when `APP_URL` is unset.
+- `engines.node >= 22`. Storage driver tests added (41 tests total).
+
 ## 0.1.0 — 25 Nov 2026
 First build of the portal from PRD v1.0 (Phase 1 MVP + parts of Phase 2).
 - Auth: Admin-created logins, temporary passwords, forced change, bcrypt, rate limiting, idle timeout, credential messages for WhatsApp/Telegram.

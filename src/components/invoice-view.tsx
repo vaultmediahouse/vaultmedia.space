@@ -10,6 +10,7 @@ import { invoiceAction } from "@/actions/billing";
 import { formatINR } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
 import { formatISTDate, formatISTDateTime, istDate } from "@/lib/week";
+import { appUrl } from "@/lib/app-url";
 
 /** Invoice detail shared by Admin and Client billing pages. */
 export async function InvoiceView({ inv, user }: { inv: Invoice; user: User }) {
@@ -21,7 +22,7 @@ export async function InvoiceView({ inv, user }: { inv: Invoice; user: User }) {
   ]);
   const overdue = inv.status === "sent" && inv.dueDate < istDate(new Date());
   const base = isAdmin ? "/admin" : "/portal";
-  const shareLink = `${process.env.APP_URL ?? ""}/portal/billing/${inv.id}`;
+  const shareLink = `${appUrl()}/portal/billing/${inv.id}`;
   const shareText = `${settings.businessName} invoice ${inv.number} for ${formatISTDate(inv.weekStart)} – ${formatISTDate(inv.weekEnd)}: ${formatINR(inv.total)}, due ${formatISTDate(inv.dueDate)}.${settings.upiId ? ` UPI: ${settings.upiId}.` : ""} View & download: ${shareLink}`;
   const upiLink = settings.upiId
     ? `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.businessName)}&am=${(inv.total / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(inv.number)}`

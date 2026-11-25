@@ -33,7 +33,14 @@ Implemented as: client users cannot create new Work Items while any invoice is p
 No background worker. `runAutoAccept()` runs on dashboard/billing loads and in `/api/cron/daily`. Auto-accepted items get `accepted_at` = delivery time + window, so they land in the correct billing week even if the job runs late.
 
 ## D-011 Local-disk file storage behind a small interface (25 Nov 2026)
-`src/lib/storage.ts` is the only module that touches files; downloads use HMAC-signed expiring URLs. Local disk is enough for development and a VPS. Must be swapped for object storage before deploying to a serverless host (ROADMAP item 1). Uploads are capped at 4 MB; larger creatives are shared as links (Drive/Canva/WeTransfer).
+`src/lib/storage.ts` is the only module that touches files; downloads use HMAC-signed expiring URLs. Local disk is enough for development and a VPS. Superseded in part by D-013 (Vercel Blob driver added). Uploads are capped at 4 MB; larger creatives are shared as links (Drive/Canva/WeTransfer).
 
 ## D-012 Repository is public — PRD and pricing (25 Nov 2026)
 `vaultmediahouse/vaultmedia.space` is a public GitHub repo. `docs/PRD.md` contains the rate card and the first client's description. No secrets are committed (`.env*` is gitignored except `.env.example`). Chief chose to push to the public repo on 25 Nov 2026, so the PRD is public. Making the repo private later is still possible but the content may already be cached.
+
+## D-013 Vercel Blob (private) as the production file store (25 Nov 2026)
+Vercel functions have no persistent disk. `src/lib/storage.ts` now picks a driver at runtime: private Vercel Blob when `BLOB_READ_WRITE_TOKEN` or `BLOB_STORE_ID` is set, local disk otherwise. Blobs are private and never linked directly; `/api/files/[key]` checks the HMAC-signed, expiring link and streams the blob server-side, so the access model is identical on both drivers. Keys are stored under `vmh-uploads/<key>`. Existing local files are not migrated automatically (none exist in production yet).
+
+## D-014 Vercel deployment: path schedule + migrations in `vercel-build` (25 Nov 2026)
+- The daily job is a Vercel **path** schedule (`vercel.json`, 09:00 Asia/Kolkata, GET `/api/cron/daily`) protected by `CRON_SECRET`, not a private `function` target. Reasons: the route already exists and also serves VPS/crontab hosting, and the Next.js function output path for a `function` target could not be verified without a linked project. Trade-off: the route is public and relies on the secret. Possible later move to a `function` target with `handleSchedule` (keep the schedule name `daily-billing`).
+- `npm run vercel-build` = `drizzle-kit migrate && next build`, so every deployment applies pending migrations to its `DATABASE_URL` before building. Consequence: **Preview deployments must use a separate database** (or a Neon branch), otherwise a preview build migrates production.

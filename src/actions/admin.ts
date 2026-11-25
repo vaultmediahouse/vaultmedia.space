@@ -11,11 +11,12 @@ import { fail, int, ok, str, type ActionState } from "@/lib/action";
 import { rupeesToPaise } from "@/lib/money";
 import { saveSettings, getSettings, type AppSettings } from "@/lib/settings";
 import { getRateCard } from "@/server/rate-cards";
+import { appUrl } from "@/lib/app-url";
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/;
 
 function credentialsMessage(name: string, username: string, password: string) {
-  const url = process.env.APP_URL ?? "http://localhost:3000";
+  const url = appUrl();
   return [
     `Hi ${name}, here is your login for the Vault Media House client portal:`,
     ``,
@@ -140,7 +141,7 @@ export async function createClientUserAction(_: ActionState, fd: FormData): Prom
   revalidatePath(`/admin/clients/${clientId}`);
   return ok("Login created. Send this message now — the password is not shown again.", {
     copy: credentialsMessage(name, username, password),
-    link: `${process.env.APP_URL ?? ""}/login`,
+    link: `${appUrl()}/login`,
   });
 }
 
@@ -159,7 +160,7 @@ export async function resetCredentialsAction(_: ActionState, fd: FormData): Prom
   if (user.clientId) revalidatePath(`/admin/clients/${user.clientId}`);
   return ok(`New temporary password for ${user.username}. Old sessions are signed out.`, {
     copy: credentialsMessage(user.name, user.username, password),
-    link: `${process.env.APP_URL ?? ""}/login`,
+    link: `${appUrl()}/login`,
   });
 }
 
