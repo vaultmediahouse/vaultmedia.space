@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, inArray, isNull, lt, lte, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, type Tx } from "@/db";
 import type { Invoice, Lead, User, WorkItem } from "@/db/schema";
 import { billableSince } from "@/lib/lead-rules";
 import { taxFor, formatINR } from "@/lib/money";
@@ -219,6 +219,57 @@ export async function markInvoicePaid(user: User, invoiceId: string, ref: string
     await audit({ userId: user.id, clientId: inv.clientId, entity: "invoice", entityId: invoiceId, action: "mark_paid", before: { status: inv.status }, after: { status: "paid", paymentRef: ref } }, tx);
   });
   await notify({ clientId: inv.clientId }, { event: "payment_recorded", title: `Payment received for ${inv.number}. Thank you!`, href: `/portal/billing/${inv.id}` });
+}
+
+/**
+ * Adjustment lines on an open invoice (setup fee, discount, one-off charge). Amount in paise; negative is a
+ * discount. Allowed only while the invoice is unpaid and no payment reference has been submitted, so the
+ * client never pays a total that changes afterwards. Totals and GST are recalculated (D-019).
+ */
+export async function addInvoiceAdjustment(user: User, invoiceId: string, input: { description: string; amount: number }) {
+  if (user.role !== "admin") throw new Error("Admin only.");
+  const description = input.description.trim();
+  if (!description) throw new Error("Describe the adjustment (e.g. Setup fee, Discount).");
+  if (!Number.isInteger(input.amount) || input.amount === 0) throw new Error("Enter a non-zero amount.");
+  const { inv, totals } = await db.transaction(async (tx) => {
+    const inv = await lockOpenInvoice(tx, invoiceId);
+    await tx.insert(schema.invoiceLines).values({ invoiceId, kind: "adjustment", description, qty: 1, rate: input.amount, amount: input.amount });
+    const totals = await recalcInvoice(tx, inv);
+    await audit({ userId: user.id, clientId: inv.clientId, entity: "invoice", entityId: invoiceId, action: "adjustment_added", before: { total: inv.total }, after: { description, amount: input.amount, total: totals.total } }, tx);
+    return { inv, totals };
+  });
+  await notify({ clientId: inv.clientId }, { event: "invoice_ready", title: `Invoice ${inv.number} updated (${description}): new total ${formatINR(totals.total)}`, href: `/portal/billing/${inv.id}` });
+}
+
+export async function removeInvoiceAdjustment(user: User, invoiceId: string, lineId: string) {
+  if (user.role !== "admin") throw new Error("Admin only.");
+  await db.transaction(async (tx) => {
+    const inv = await lockOpenInvoice(tx, invoiceId);
+    const [gone] = await tx
+      .delete(schema.invoiceLines)
+      .where(and(eq(schema.invoiceLines.id, lineId), eq(schema.invoiceLines.invoiceId, invoiceId), eq(schema.invoiceLines.kind, "adjustment")))
+      .returning();
+    if (!gone) throw new Error("Only adjustment lines can be removed.");
+    const totals = await recalcInvoice(tx, inv);
+    await audit({ userId: user.id, clientId: inv.clientId, entity: "invoice", entityId: invoiceId, action: "adjustment_removed", before: { description: gone.description, amount: gone.amount, total: inv.total }, after: { total: totals.total } }, tx);
+  });
+}
+
+async function lockOpenInvoice(tx: Tx, invoiceId: string): Promise<Invoice> {
+  const [inv] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId)).for("update");
+  if (!inv) throw new Error("Invoice not found.");
+  if (inv.status !== "sent") throw new Error("Adjustments are only possible before the client pays or submits a payment reference.");
+  return inv;
+}
+
+async function recalcInvoice(tx: Tx, inv: Invoice) {
+  const lines = await tx.select({ amount: schema.invoiceLines.amount }).from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, inv.id));
+  const subtotal = lines.reduce((s, l) => s + l.amount, 0);
+  if (subtotal < 0) throw new Error("The invoice total cannot go below zero.");
+  const tax = taxFor(subtotal, inv.taxRateBps);
+  const totals = { subtotal, tax, total: subtotal + tax };
+  await tx.update(schema.invoices).set(totals).where(eq(schema.invoices.id, inv.id));
+  return totals;
 }
 
 /** Void an unpaid invoice: its items and leads go back to the unbilled pool. */

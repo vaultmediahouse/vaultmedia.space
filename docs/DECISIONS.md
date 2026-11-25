@@ -21,7 +21,7 @@ PRD §2.2 allows the client 48 h to mark a lead Fake/Wrong Number. Decision: a q
 PRD §7 says "rich-text editor". Markdown keeps documents diffable, versionable as plain text, safe (raw HTML is escaped) and easy to render to PDF. Trade-off: less familiar for non-technical editing. Revisit if Chief finds it awkward.
 
 ## D-007 PDF via @react-pdf/renderer, not headless Chrome (25 Nov 2026)
-Pure Node, small, works on serverless. Built-in fonts lack the ₹ glyph, so PDFs print "Rs.". Embedding a font with ₹ is a possible later improvement.
+Pure Node, small, works on serverless. Built-in fonts lack the ₹ glyph; solved by D-018.
 
 ## D-008 Paid revisions are separate Work Items (25 Nov 2026)
 A revision beyond the free limit creates a "Extra revision" Work Item already approved by the client (their request) and waiting for Admin approval. Keeps the dual-approval rule intact and makes the charge visible on the invoice.
@@ -51,8 +51,18 @@ Chief asked to create a client with an ID and password and hand them over. The C
 - Production database: Neon `vmh-prod` (free plan, region `sin1`, Neon Auth off — the portal has its own logins), connected to the **Production** environment only.
 - Preview database: a separate Neon `vmh-preview` (same settings), connected to **Preview** only, so preview builds' migrations never touch production (D-014).
 - Files: private Blob store `vmh-files` (region `sin1`), connected to Production and Preview (sets `BLOB_READ_WRITE_TOKEN`). Preview uploads land in the same store under random keys; acceptable for now.
+- `vercel.json` `"framework": "nextjs"`: the project had been created with no framework preset, so Vercel built the app but served only static files (404 on every route). Set on the project and pinned in `vercel.json` so it cannot drift.
 - `vercel.json` `regions: ["sin1"]`: functions run next to the database (Vercel's default `iad1` would add a US round trip to every query). Singapore is the closest region to India that both Neon and Vercel offer.
 - Secrets (`APP_SECRET`, `CRON_SECRET`) are generated per environment with `openssl rand -hex 32` piped into `vercel env add … --sensitive`, never printed. Values imported from `.env.local` were removed (they pointed at localhost and included the exposed `CRON_SECRET`).
+
+## D-018 ₹ in PDFs via a Noto Sans fallback font (26 Nov 2026)
+Helvetica (built into PDF readers, no embedding) stays the text font; a Noto Sans **latin-ext** subset (regular, bold, italic; ~80 KB each, SIL Open Font License, copied from the `@fontsource/noto-sans` 5.3.0 npm package with its licence into `src/server/fonts/`) is registered as `NotoRupee` and listed second in the font stack. react-pdf takes each character from the first font that has it, so only "₹" (and rare accented letters) come from Noto; the embedded subset is tiny (an invoice PDF is ~6 KB). Bold/italic are expressed as `fontWeight`/`fontStyle` so both fonts switch together. The files are read from disk, so `next.config.ts` adds them to the PDF routes with `outputFileTracingIncludes`. Negative amounts use an ASCII hyphen ("-₹500") because neither font has U+2212.
+
+## D-019 Invoice adjustment lines (26 Nov 2026)
+`invoice_lines.kind = 'adjustment'` (already in the schema) is now used: Admin adds a charge or discount (qty 1, amount = ±paise) on the invoice page; subtotal, GST (same rate as the invoice) and total are recalculated in one transaction with a row lock. Allowed only while the invoice status is `sent` — once the client submits a payment reference or it is paid/void, the amount is frozen so nobody pays a total that later changes. The total cannot go below zero. Only adjustment lines can be removed. The client gets an in-app notification. Chosen over a separate "credit note" model for simplicity at this scale.
+
+## D-020 Lead personal-data retention (26 Nov 2026)
+The DPA template promises deletion after 12 months. Setting `leadRetentionMonths` (default 12, 0 = off) drives `runLeadRetention()` in the daily job: leads with `received_at` older than the cutoff get `name = '[erased]'`, phone/answers cleared. Rows are **anonymised, not deleted**, so invoices, reports and counts stay consistent (same approach as the manual "Erase data" for invoiced leads). One audit entry per run with the count.
 
 ## D-014 Vercel deployment: path schedule + migrations in `vercel-build` (25 Nov 2026)
 - The daily job is a Vercel **path** schedule (`vercel.json`, 09:00 Asia/Kolkata, GET `/api/cron/daily`) protected by `CRON_SECRET`, not a private `function` target. Reasons: the route already exists and also serves VPS/crontab hosting, and the Next.js function output path for a `function` target could not be verified without a linked project. Trade-off: the route is public and relies on the secret. Possible later move to a `function` target with `handleSchedule` (keep the schedule name `daily-billing`).

@@ -213,6 +213,7 @@ export async function saveSettingsAction(_: ActionState, fd: FormData): Promise<
     cutoffHour: Math.min(23, Math.max(0, int(fd, "cutoffHour", before.cutoffHour))),
     paymentWindowDays: Math.max(0, int(fd, "paymentWindowDays", before.paymentWindowDays)),
     autoAcceptHours: Math.max(0, int(fd, "autoAcceptHours", before.autoAcceptHours)),
+    leadRetentionMonths: Math.max(0, int(fd, "leadRetentionMonths", before.leadRetentionMonths)),
     sessionIdleMinutes: Math.max(10, int(fd, "sessionIdleMinutes", before.sessionIdleMinutes)),
     jurisdiction: str(fd, "jurisdiction").trim() || before.jurisdiction,
     defaultRates: {

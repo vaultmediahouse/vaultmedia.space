@@ -86,7 +86,7 @@ async function seedDemo(adminId: string) {
   const now = Date.now();
   const H = 3_600_000;
   await db.insert(schema.workItems).values([
-    { clientId: client.id, type: "image", title: "Diwali offer static post", qty: 2, rate: 30000, amount: 60000, status: "proposed", createdBy: adminId, adminApprovedAt: new Date(now - 5 * H), adminApprovedBy: adminId, brief: "Two square posts for Instagram & Facebook, Gujarati + English." },
+    { clientId: client.id, type: "image", title: "Diwali offer static post", qty: 2, rate: 30000, amount: 60000, status: "proposed", createdBy: adminId, createdAt: new Date(now - 5 * H), adminApprovedAt: new Date(now - 5 * H), adminApprovedBy: adminId, brief: "Two square posts for Instagram & Facebook, Gujarati + English." },
     { clientId: client.id, type: "video", title: "15-sec machine demo reel", qty: 1, rate: 30000, amount: 30000, status: "draft", createdBy: adminId },
   ]);
   const names = ["Ramesh Patel", "Hetal Shah", "Vikram Desai", "Anjali Mehta", "Kiran Joshi"];

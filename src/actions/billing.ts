@@ -5,7 +5,7 @@ import { requireAdmin, requireUser } from "@/lib/auth";
 import { fail, ok, str, type ActionState } from "@/lib/action";
 import { getSettings } from "@/lib/settings";
 import { lastClosedWeek, weekContaining } from "@/lib/week";
-import { formatINR } from "@/lib/money";
+import { formatINR, rupeesToPaise } from "@/lib/money";
 import * as billing from "@/server/billing";
 import { runAutoAccept } from "@/server/work-items";
 
@@ -39,11 +39,24 @@ export async function invoiceAction(_: ActionState, fd: FormData): Promise<Actio
     if (op === "submit_ref") await billing.submitPaymentRef(user, id, str(fd, "ref"));
     else if (op === "mark_paid") await billing.markInvoicePaid(user, id, str(fd, "ref") || null);
     else if (op === "void") await billing.voidInvoice(user, id);
+    else if (op === "add_adjustment") {
+      const rupees = rupeesToPaise(str(fd, "amount").replace(/^-/, ""));
+      if (rupees === null) return fail("Enter the amount in rupees, e.g. 3000.");
+      const sign = str(fd, "sign") === "discount" ? -1 : 1;
+      await billing.addInvoiceAdjustment(user, id, { description: str(fd, "description"), amount: sign * rupees });
+    } else if (op === "remove_adjustment") await billing.removeInvoiceAdjustment(user, id, str(fd, "lineId"));
     else return fail("Unknown action.");
   } catch (e) {
     return fail((e as Error).message);
   }
   revalidatePath(user.role === "admin" ? `/admin/billing/${id}` : `/portal/billing/${id}`);
   revalidatePath(user.role === "admin" ? "/admin/billing" : "/portal/billing");
-  return ok(op === "submit_ref" ? "Thanks — we'll confirm once received." : op === "void" ? "Invoice voided; its items are back in the unbilled pool." : "Marked paid.");
+  const done: Record<string, string> = {
+    submit_ref: "Thanks — we'll confirm once received.",
+    void: "Invoice voided; its items are back in the unbilled pool.",
+    mark_paid: "Marked paid.",
+    add_adjustment: "Line added; totals updated.",
+    remove_adjustment: "Line removed; totals updated.",
+  };
+  return ok(done[op] ?? "Done.");
 }

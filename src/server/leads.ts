@@ -1,10 +1,11 @@
 import "server-only";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Lead, LeadStatus, User } from "@/db/schema";
 import { DUPLICATE_WINDOW_DAYS, LEAD_STATUS_LABEL, normalizePhone } from "@/lib/lead-rules";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
+import { getSettings } from "@/lib/settings";
 
 /**
  * Lead intake and client feedback (PRD §2.2, §5 Leads, §6 My Leads).
@@ -120,6 +121,27 @@ export async function eraseLead(user: User, leadId: string) {
     await db.delete(schema.leads).where(eq(schema.leads.id, leadId));
   }
   await audit({ userId: user.id, clientId: lead.clientId, entity: "lead", entityId: leadId, action: "erase_personal_data" });
+}
+
+/**
+ * Retention (DPA: personal data kept for 12 months by default). Anonymises leads received more than
+ * `leadRetentionMonths` ago: name, phone and answers are removed, the row stays so invoices, reports and
+ * counts still add up. Runs from the daily job; idempotent (D-020).
+ */
+export async function runLeadRetention(now = new Date()): Promise<number> {
+  const { leadRetentionMonths } = await getSettings();
+  if (!leadRetentionMonths || leadRetentionMonths <= 0) return 0;
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - leadRetentionMonths);
+  const erased = await db
+    .update(schema.leads)
+    .set({ name: "[erased]", phone: null, phoneNormalized: null, answers: {} })
+    .where(and(lt(schema.leads.receivedAt, cutoff), sql`coalesce(${schema.leads.name}, '') <> '[erased]'`))
+    .returning({ id: schema.leads.id });
+  if (erased.length) {
+    await audit({ userId: null, entity: "lead", action: "retention_erase", after: { count: erased.length, olderThan: cutoff.toISOString(), months: leadRetentionMonths } });
+  }
+  return erased.length;
 }
 
 /** Leads not yet invoiced for a client. */

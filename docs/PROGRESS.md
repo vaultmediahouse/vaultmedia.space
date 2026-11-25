@@ -1,10 +1,10 @@
 # Progress — what is built, what is not
 
-Last updated: 25 Nov 2026. Status of every PRD section ([PRD.md](PRD.md)). Legend: ✅ built and tested · 🟡 partly built · ⬜ not built.
+Last updated: 26 Nov 2026. Status of every PRD section ([PRD.md](PRD.md)). Legend: ✅ built and tested · 🟡 partly built · ⬜ not built.
 
 ## Summary
 
-Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export, comments, payment reference upload, lead webhook, DPA and deposit templates, reminders). Nothing is deployed yet and no real client data has been entered. Code is in the local working tree of `vaultmediahouse/vaultmedia.space`; it is on `main` and pushed to GitHub (25 Nov 2026). The repo is public, so `docs/PRD.md` is public too (see [DECISIONS.md](DECISIONS.md) D-012). Vercel-ready since v0.2.0 (Blob storage, schedule, build-time migrations) but **not deployed yet**: the first deployment (25 Nov, `a849d78`) failed; v0.2.1 fixes the build (lazy DB connection, accepted database URL names, D-015). Redeploy after connecting a database — see RUNBOOK "Deploying to Vercel".
+Phase 1 (MVP) is complete, plus most of Phase 2. **Live since 26 Nov 2026 at https://www.vaultmedia.space** (v0.3.0; Vercel project `vaultmedia.space`, Neon Postgres in Singapore, private Blob store; see RUNBOOK "Current Vercel setup"). No real client data entered yet; Chief's first production sign-in and Settings (UPI/bank/GST) are the next steps. Code is on `main` of the **public** repo `vaultmediahouse/vaultmedia.space` (D-012).
 
 ## PRD §15 acceptance criteria
 
@@ -35,7 +35,7 @@ Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export
 | 9 | Data model | ✅ | See [DATABASE.md](DATABASE.md) for additions beyond the PRD. |
 | 10 | Key screens | ✅ | |
 | 11 | CSV export (work, leads, ledger), PDF invoice, metrics | ✅ | CSV only (opens in Excel); native .xlsx: ⬜. "Statement" PDF (multi-invoice): ⬜ — ledger CSV covers it. |
-| 12 | Security: RBAC, isolation, hashed passwords, signed expiring file links, audit log, lead data deletion | ✅ | HTTPS and **daily DB backup** depend on hosting — see [RUNBOOK.md](RUNBOOK.md). Retention auto-deletion: ⬜ (manual "Erase data" exists). |
+| 12 | Security: RBAC, isolation, hashed passwords, signed expiring file links, audit log, lead data deletion | ✅ | HTTPS by Vercel; DB backups depend on the Neon plan — see [RUNBOOK.md](RUNBOOK.md). Retention: leads auto-anonymised after N months (default 12, D-020) plus manual "Erase data". |
 | 13 | Tech stack | ✅ | Next.js 16 + PostgreSQL (Drizzle). See [ARCHITECTURE.md](ARCHITECTURE.md). |
 | 14 | Phase 2: lead webhook, payment ref, export, comments, reminders, DPA/deposit templates, auto-sanction | ✅ | Phase 3 (Telegram bot, Razorpay links, analytics): ⬜. |
 
@@ -55,9 +55,15 @@ Phase 1 (MVP) is complete, plus several Phase 2 items (auto-sanction, CSV export
 - `/api/cron/daily`: 401 without the secret; `ok: true` with it.
 - Vercel build logs for the failed deployment were **not read** (CLI token invalid on this Mac); the fix is based on reproducing the build locally. Confirm on the next deploy.
 
+## Verified on 26 Nov 2026 (v0.3.0)
+
+- **Production live** at https://www.vaultmedia.space (apex `vaultmedia.space` redirects to `www`). Build log: migrations applied. `/login` 200; `/admin`, `/portal` redirect to sign-in; `/api/cron/daily` 401 without the secret; `vercel schedules invoke daily-billing` → execution `succeeded`. Production admin `chief` seeded (temporary password, must be changed at first sign-in). Signing in on production was **not** done by Claude (safety rule: no password entry on production); Chief does the first sign-in.
+- Browser, local (admin + client accounts): client approves → Sanctioned; Start work; Mark delivered refused without a deliverable; delivered with a link; client requests revision (free counter 1 used); re-delivery refused until a new deliverable is added; client accepts → "Running this week" shows the amount; client submits a payment reference; admin marks paid; admin imports a Meta-style CSV (invalid phone → not billable); client marks a lead Fake; admin sends an NDA; client opens it (Viewed) and accepts with typed name (locked); admin adds a setup-fee charge and a discount to an open invoice (totals recalculated); Settings shows the lead-retention field; phone width has no page-level horizontal scroll.
+- Invoice PDF renders "₹" (checked visually from a rendered page image); typecheck, lint clean; 48 tests pass with `TEST_DATABASE_URL`; clean-clone production build passes and traces the font files into the PDF route.
+
 ## Known gaps and risks
 
-1. **Blob driver tested with a mocked SDK only** (tests/storage.test.ts); first real upload on Vercel should be checked by hand after deploy.
-2. **Not deployed**; database backups depend on the chosen Postgres provider.
+1. **Blob driver tested with a mocked SDK only** (tests/storage.test.ts); first real upload on production should be checked by hand.
+2. Database backups: Neon free plan keeps a short point-in-time restore window; consider a paid plan or a scheduled `pg_dump` before real billing data accumulates.
 3. Legal templates are drafts, not legal advice.
 4. No automated browser (E2E) tests yet.

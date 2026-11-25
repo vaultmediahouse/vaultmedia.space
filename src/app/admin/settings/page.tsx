@@ -45,6 +45,7 @@ export default async function SettingsPage() {
             <Field label="Sunday cut-off hour (IST, 0–23)"><Input name="cutoffHour" type="number" min={0} max={23} defaultValue={s.cutoffHour} /></Field>
             <Field label="Payment window (days)"><Input name="paymentWindowDays" type="number" min={0} defaultValue={s.paymentWindowDays} /></Field>
             <Field label="Auto-accept deliveries after (hours)" hint="0 = off"><Input name="autoAcceptHours" type="number" min={0} defaultValue={s.autoAcceptHours} /></Field>
+            <Field label="Erase lead personal data after (months)" hint="Name, phone and answers are removed by the daily job; counts stay for invoices. 0 = keep. The DPA template says 12."><Input name="leadRetentionMonths" type="number" min={0} defaultValue={s.leadRetentionMonths} /></Field>
             <Field label="Sign out after inactivity (minutes)"><Input name="sessionIdleMinutes" type="number" min={10} defaultValue={s.sessionIdleMinutes} /></Field>
           </div>
           <p className="mt-3 text-xs text-muted">Example invoice number: {s.invoicePrefix}-2026-{String(s.nextInvoiceNumber).padStart(4, "0")}</p>

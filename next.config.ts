@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   },
   // @react-pdf/renderer ships its own font/layout engines; keep it out of the server bundle.
   serverExternalPackages: ["@react-pdf/renderer"],
+  // PDF fallback font for the ₹ glyph (read from disk by src/server/pdf.tsx, D-018).
+  outputFileTracingIncludes: {
+    "/api/invoices/*/pdf": ["./src/server/fonts/**/*"],
+    "/api/documents/*/pdf": ["./src/server/fonts/**/*"],
+  },
   experimental: {
     serverActions: { bodySizeLimit: "5mb" }, // uploads are capped at 4 MB in src/lib/storage.ts
   },

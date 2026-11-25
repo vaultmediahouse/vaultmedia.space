@@ -27,6 +27,7 @@ describe("money", () => {
     const total = 4 * 30000 + 2 * 30000 + 35 * 20000;
     expect(total).toBe(880000);
     expect(formatINR(total)).toBe("₹8,800");
+    expect(formatINR(-50000)).toBe("-₹500");
   });
   it("GST 18% and rupee parsing", () => {
     expect(taxFor(880000, 1800)).toBe(158400);

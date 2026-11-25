@@ -1,6 +1,8 @@
 /** All money in the app is integer paise. These helpers convert for display and input. */
 
 export function formatINR(paise: number, opts: { decimals?: boolean } = {}): string {
+  // Discounts and credits: "-₹500", not "₹-500". Plain hyphen: PDF fonts have no U+2212 minus sign.
+  if (paise < 0) return "-" + formatINR(-paise, opts);
   const rupees = paise / 100;
   const showDecimals = opts.decimals ?? paise % 100 !== 0;
   return (
@@ -10,11 +12,6 @@ export function formatINR(paise: number, opts: { decimals?: boolean } = {}): str
       maximumFractionDigits: 2,
     })
   );
-}
-
-/** Same as formatINR but with "Rs." — the built-in PDF fonts have no ₹ glyph. */
-export function formatINRPlain(paise: number): string {
-  return formatINR(paise, { decimals: true }).replace("₹", "Rs. ");
 }
 
 /** Parse a rupee amount typed by a user ("1,200.50") into paise. Returns null if invalid. */

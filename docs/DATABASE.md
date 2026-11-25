@@ -16,12 +16,12 @@ PostgreSQL. Schema source of truth: `src/db/schema.ts`. Migrations: `drizzle/` (
 | `comments` | Thread per Work Item | |
 | `leads` | Leads per client | `phone_normalized` (duplicate detection), `answers` jsonb, `status`, `status_changed_at`, `is_duplicate`, `duplicate_of`, `replaces_id`, `replaced_by`, `invoice_id` |
 | `invoices` | Weekly invoices | `number` unique, `week_start`/`week_end`, `subtotal`, `tax_rate_bps`, `tax`, `total`, `status` (sent / payment_submitted / paid / void), `due_date`, `payment_ref`; unique (`client_id`, `week_start`) |
-| `invoice_lines` | Invoice lines | `kind` work_item / leads / adjustment |
+| `invoice_lines` | Invoice lines | `kind` work_item / leads / adjustment (adjustments: Admin charges/discounts, D-019) |
 | `doc_templates` | Markdown templates | `body`, `variables` |
 | `documents` | Client documents, versioned | `group_id` (all versions), `version`, `status`, `share_token`, `sent_at`, `viewed_at`, `accepted_at`, `accepted_ip`, `accepted_name`, `signed_storage_key`, `superseded_by` |
 | `activity_log` | Audit trail | user, client, entity, action, before/after jsonb, ip |
 | `notifications` | In-app notifications | user, event, title, href, read_at |
-| `settings` | Key/value JSON | key `app`: see `AppSettings` in `src/lib/settings.ts` (also holds `nextInvoiceNumber`) |
+| `settings` | Key/value JSON | key `app`: see `AppSettings` in `src/lib/settings.ts` (also holds `nextInvoiceNumber`; `leadRetentionMonths` added 26 Nov 2026, default 12 — no migration, defaults merge in) |
 
 ## Differences from the PRD §9 summary
 

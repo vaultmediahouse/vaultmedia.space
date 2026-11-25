@@ -1,27 +1,42 @@
 import "server-only";
-import { Document as PDFDocument, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import path from "node:path";
+import { Document as PDFDocument, Font, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { marked, type Token, type Tokens } from "marked";
 import type { Client, Document, Invoice, InvoiceLine } from "@/db/schema";
 import type { AppSettings } from "@/lib/settings";
-import { formatINRPlain } from "@/lib/money";
+import { formatINR } from "@/lib/money";
 import { formatISTDate, formatISTDateTime } from "@/lib/week";
 
 /**
  * PDF generation with @react-pdf/renderer (pure Node, no headless browser — works on serverless).
- * Built-in Helvetica has no ₹ glyph, so amounts print as "Rs.".
+ * Text uses built-in Helvetica. Helvetica has no ₹ glyph, so a small Noto Sans (latin-ext subset, SIL OFL,
+ * files in src/server/fonts) is registered as a per-glyph fallback: react-pdf takes each character from the
+ * first font in the stack that has it (D-018). Bold/italic are set with fontWeight/fontStyle so both fonts
+ * switch together.
  */
+const FONT_DIR = path.join(process.cwd(), "src/server/fonts");
+Font.register({
+  family: "NotoRupee",
+  fonts: [
+    { src: path.join(FONT_DIR, "noto-sans-latin-ext-400-normal.woff"), fontWeight: 400 },
+    { src: path.join(FONT_DIR, "noto-sans-latin-ext-700-normal.woff"), fontWeight: 700 },
+    { src: path.join(FONT_DIR, "noto-sans-latin-ext-400-italic.woff"), fontWeight: 400, fontStyle: "italic" },
+  ],
+});
+Font.registerHyphenationCallback((word) => [word]);
+const FONT = ["Helvetica", "NotoRupee"];
 
 const s = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#0f172a", lineHeight: 1.45 },
-  brand: { fontSize: 16, fontFamily: "Helvetica-Bold" },
+  page: { padding: 40, fontSize: 10, fontFamily: FONT, color: "#0f172a", lineHeight: 1.45 },
+  brand: { fontSize: 16, fontWeight: 700 },
   gold: { color: "#b8913a" },
   muted: { color: "#64748b" },
   row: { flexDirection: "row" },
-  h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 8 },
-  h2: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 12, marginBottom: 4 },
-  h3: { fontSize: 10.5, fontFamily: "Helvetica-Bold", marginTop: 8, marginBottom: 3 },
+  h1: { fontSize: 15, fontWeight: 700, marginBottom: 8 },
+  h2: { fontSize: 12, fontWeight: 700, marginTop: 12, marginBottom: 4 },
+  h3: { fontSize: 10.5, fontWeight: 700, marginTop: 8, marginBottom: 3 },
   p: { marginBottom: 5 },
-  th: { fontFamily: "Helvetica-Bold", backgroundColor: "#f1f5f9" },
+  th: { fontWeight: 700, backgroundColor: "#f1f5f9" },
   cell: { padding: 4, borderBottomWidth: 0.5, borderColor: "#cbd5e1" },
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, fontSize: 8, color: "#94a3b8", textAlign: "center" },
 });
@@ -47,7 +62,7 @@ export async function invoicePdf(inv: Invoice, lines: InvoiceLine[], client: Cli
         </View>
         <View style={{ marginBottom: 16 }}>
           <Text style={s.muted}>Bill to</Text>
-          <Text style={{ fontFamily: "Helvetica-Bold" }}>{client.company}</Text>
+          <Text style={{ fontWeight: 700 }}>{client.company}</Text>
           {client.address ? <Text>{[client.address, client.city].filter(Boolean).join(", ")}</Text> : null}
           {client.gstNo ? <Text>GST no.: {client.gstNo}</Text> : null}
           <Text style={[s.muted, { marginTop: 4 }]}>Work period: {formatISTDate(inv.weekStart)} – {formatISTDate(inv.weekEnd)}</Text>
@@ -62,14 +77,14 @@ export async function invoicePdf(inv: Invoice, lines: InvoiceLine[], client: Cli
             <View key={l.id} style={s.row} wrap={false}>
               <Text style={[s.cell, { width: "55%" }]}>{l.description}</Text>
               <Text style={[s.cell, { width: "10%", textAlign: "right" }]}>{l.qty}</Text>
-              <Text style={[s.cell, { width: "15%", textAlign: "right" }]}>{formatINRPlain(l.rate)}</Text>
-              <Text style={[s.cell, { width: "20%", textAlign: "right" }]}>{formatINRPlain(l.amount)}</Text>
+              <Text style={[s.cell, { width: "15%", textAlign: "right" }]}>{formatINR(l.rate, { decimals: true })}</Text>
+              <Text style={[s.cell, { width: "20%", textAlign: "right" }]}>{formatINR(l.amount, { decimals: true })}</Text>
             </View>
           ))}
           <View style={{ alignItems: "flex-end", marginTop: 8 }}>
-            <Text>Subtotal: {formatINRPlain(inv.subtotal)}</Text>
-            {inv.taxRateBps > 0 ? <Text>GST {inv.taxRateBps / 100}%: {formatINRPlain(inv.tax)}</Text> : null}
-            <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 4 }}>Total: {formatINRPlain(inv.total)}</Text>
+            <Text>Subtotal: {formatINR(inv.subtotal, { decimals: true })}</Text>
+            {inv.taxRateBps > 0 ? <Text>GST {inv.taxRateBps / 100}%: {formatINR(inv.tax, { decimals: true })}</Text> : null}
+            <Text style={{ fontWeight: 700, fontSize: 12, marginTop: 4 }}>Total: {formatINR(inv.total, { decimals: true })}</Text>
           </View>
         </View>
         <View style={{ marginTop: 24 }}>
@@ -77,7 +92,7 @@ export async function invoicePdf(inv: Invoice, lines: InvoiceLine[], client: Cli
           {settings.upiId ? <Text>UPI: {settings.upiId}</Text> : null}
           {settings.bankDetails ? <Text>{settings.bankDetails}</Text> : null}
           <Text style={[s.muted, { marginTop: 6 }]}>Please pay within {settings.paymentWindowDays} days and add the payment reference (UTR) in the client portal. Only work approved by both parties and accepted on delivery, and qualified leads, are billed.</Text>
-          {inv.status === "paid" ? <Text style={{ marginTop: 8, color: "#047857", fontFamily: "Helvetica-Bold" }}>PAID {inv.paidAt ? formatISTDate(inv.paidAt) : ""} {inv.paymentRef ? `· Ref ${inv.paymentRef}` : ""}</Text> : null}
+          {inv.status === "paid" ? <Text style={{ marginTop: 8, color: "#047857", fontWeight: 700 }}>PAID {inv.paidAt ? formatISTDate(inv.paidAt) : ""} {inv.paymentRef ? `· Ref ${inv.paymentRef}` : ""}</Text> : null}
         </View>
         <Text style={s.footer} fixed>{settings.businessName} · Generated by the client portal</Text>
       </Page>
@@ -93,8 +108,8 @@ function inline(tokens: Token[] | undefined, key = "i"): React.ReactNode[] {
   if (!tokens) return [];
   return tokens.map((t, i) => {
     const k = `${key}-${i}`;
-    if (t.type === "strong") return <Text key={k} style={{ fontFamily: "Helvetica-Bold" }}>{inline((t as Tokens.Strong).tokens, k)}</Text>;
-    if (t.type === "em") return <Text key={k} style={{ fontFamily: "Helvetica-Oblique" }}>{inline((t as Tokens.Em).tokens, k)}</Text>;
+    if (t.type === "strong") return <Text key={k} style={{ fontWeight: 700 }}>{inline((t as Tokens.Strong).tokens, k)}</Text>;
+    if (t.type === "em") return <Text key={k} style={{ fontStyle: "italic" }}>{inline((t as Tokens.Em).tokens, k)}</Text>;
     if (t.type === "br") return "\n";
     if ("tokens" in t && t.tokens) return <Text key={k}>{inline(t.tokens as Token[], k)}</Text>;
     return decode((t as { text?: string }).text ?? t.raw);
@@ -154,7 +169,7 @@ export async function documentPdf(doc: Document, client: Client, settings: AppSe
         {tokens.map(block)}
         {doc.acceptedAt ? (
           <View style={{ marginTop: 20, padding: 10, borderWidth: 0.5, borderColor: "#10b981" }} wrap={false}>
-            <Text style={{ fontFamily: "Helvetica-Bold", color: "#047857" }}>Accepted electronically</Text>
+            <Text style={{ fontWeight: 700, color: "#047857" }}>Accepted electronically</Text>
             <Text>Signed by: {doc.acceptedName}</Text>
             <Text>Date and time: {formatISTDateTime(doc.acceptedAt)} IST</Text>
             <Text>IP address: {doc.acceptedIp}</Text>

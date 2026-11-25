@@ -21,6 +21,7 @@ export type AppSettings = {
   cutoffHour: number; // Sunday cut-off hour in IST (0–23)
   paymentWindowDays: number;
   autoAcceptHours: number; // 0 disables auto-accept
+  leadRetentionMonths: number; // lead personal data is anonymised after this many months; 0 = keep (D-020)
   sessionIdleMinutes: number;
   jurisdiction: string;
   defaultRates: {
@@ -49,6 +50,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cutoffHour: 20,
   paymentWindowDays: 3,
   autoAcceptHours: 48,
+  leadRetentionMonths: 12,
   sessionIdleMinutes: 120,
   jurisdiction: "Ahmedabad, Gujarat, India",
   defaultRates: {

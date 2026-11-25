@@ -2,9 +2,9 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Invoice, User } from "@/db/schema";
-import { ActionForm, SubmitButton } from "./action-form";
+import { ActionButton, ActionForm, SubmitButton } from "./action-form";
 import { InvoiceStatus } from "./status";
-import { Card, DL, Input, PageHeader, Table, Td, Th } from "./ui";
+import { Card, DL, Input, PageHeader, Select, Table, Td, Th } from "./ui";
 import { CopyButton } from "./copy-button";
 import { invoiceAction } from "@/actions/billing";
 import { formatINR } from "@/lib/money";
@@ -15,6 +15,7 @@ import { appUrl } from "@/lib/app-url";
 /** Invoice detail shared by Admin and Client billing pages. */
 export async function InvoiceView({ inv, user }: { inv: Invoice; user: User }) {
   const isAdmin = user.role === "admin";
+  const canAdjust = inv.status === "sent";
   const [lines, client, settings] = await Promise.all([
     db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, inv.id)).orderBy(desc(schema.invoiceLines.kind)),
     db.query.clients.findFirst({ where: eq(schema.clients.id, inv.clientId) }),
@@ -50,7 +51,14 @@ export async function InvoiceView({ inv, user }: { inv: Invoice; user: User }) {
                   <Td>{l.workItemId ? <Link className="hover:underline" href={`${base}/work/${l.workItemId}`}>{l.description}</Link> : l.description}</Td>
                   <Td className="text-right tabular-nums">{l.qty}</Td>
                   <Td className="text-right tabular-nums">{formatINR(l.rate)}</Td>
-                  <Td className="text-right tabular-nums">{formatINR(l.amount)}</Td>
+                  <Td className="text-right tabular-nums">
+                    {formatINR(l.amount)}
+                    {isAdmin && canAdjust && l.kind === "adjustment" && (
+                      <div className="mt-1 flex justify-end text-xs">
+                        <ActionButton action={invoiceAction} hidden={{ id: inv.id, op: "remove_adjustment", lineId: l.id }} variant="ghost" confirm="Remove this line?">Remove</ActionButton>
+                      </div>
+                    )}
+                  </Td>
                 </tr>
               ))}
               <tr><Td colSpan={3} className="text-right text-muted">Subtotal</Td><Td className="text-right tabular-nums">{formatINR(inv.subtotal)}</Td></tr>
@@ -58,6 +66,21 @@ export async function InvoiceView({ inv, user }: { inv: Invoice; user: User }) {
               <tr><Td colSpan={3} className="text-right font-semibold">Total</Td><Td className="text-right text-base font-semibold tabular-nums">{formatINR(inv.total)}</Td></tr>
             </tbody>
           </Table>
+          {isAdmin && canAdjust && (
+            <ActionForm action={invoiceAction} hidden={{ id: inv.id, op: "add_adjustment" }} resetOnSuccess className="mt-4 space-y-2 rounded-md bg-slate-50 p-3">
+              <div className="text-sm font-medium">Add a line</div>
+              <div className="grid gap-2 sm:grid-cols-[120px_1fr_140px]">
+                <Select name="sign" defaultValue="charge" aria-label="Charge or discount">
+                  <option value="charge">Charge</option>
+                  <option value="discount">Discount</option>
+                </Select>
+                <Input name="description" placeholder="e.g. One-time setup fee" required aria-label="Description" />
+                <Input name="amount" inputMode="decimal" placeholder="Amount (₹)" required aria-label="Amount in rupees" />
+              </div>
+              <p className="text-xs text-muted">Possible until the client pays or submits a payment reference. GST and the total are recalculated.</p>
+              <SubmitButton variant="secondary">Add line</SubmitButton>
+            </ActionForm>
+          )}
         </Card>
         <div className="space-y-6">
           <Card title="Payment">

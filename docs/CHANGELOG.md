@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased
-- `vercel.json`: functions run in `sin1` (Singapore), next to the Neon database (D-017).
+## 0.3.0 — 26 Nov 2026
+Live on Vercel (https://www.vaultmedia.space) and the remaining launch items.
+- **Deployed.** Neon Postgres (prod + separate preview), private Blob store, secrets per environment (D-017). Production admin `chief` seeded. Fix: the Vercel project had no framework preset, so the first successful build served only static files (every page 404 `NOT_FOUND`); framework set to Next.js on the project and pinned in `vercel.json` (`"framework": "nextjs"`).
+- `vercel.json`: functions run in `sin1` (Singapore), next to the database.
+- **₹ in PDFs**: Noto Sans latin-ext subset (SIL OFL, `src/server/fonts/`) registered as a per-glyph fallback after Helvetica; invoices print "₹1,600.00" instead of "Rs. 1,600.00" (D-018). Font files are traced into the PDF routes (`outputFileTracingIncludes`).
+- **Invoice adjustment lines**: Admin can add a charge (e.g. setup fee) or discount to an invoice until the client pays or submits a payment reference; GST and totals are recalculated, the client is notified, every change is audited (D-019).
+- **Lead data retention**: daily job anonymises leads older than *Settings → Erase lead personal data after (months)*, default 12, 0 = off (D-020). The cron response now includes `leadsErased`.
+- Re-delivery after a revision request requires a new deliverable (file or link) added since the previous delivery.
+- Negative amounts display as "-₹500".
+- Demo seed: the proposed demo item's created time matches its approval time.
+- Tests: 48 (unit incl. PDF render + 15 integration).
 
 ## 0.2.1 — 25 Nov 2026
 Fix the failed Vercel deployment (`dpl_6ZrFabXYB3rwW98cNPahQLsHzXBE`, commit `a849d78`) and let Admin choose a client's first password.

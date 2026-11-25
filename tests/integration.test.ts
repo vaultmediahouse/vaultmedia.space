@@ -94,6 +94,12 @@ describe("portal acceptance (integration)", async () => {
     await wi.addAttachment(admin, item.id, { kind: "deliverable", url: "https://example.com/final.png", fileName: "final" });
     await expect(wi.addAttachment(clientA, item.id, { kind: "deliverable", url: "https://x.y" })).rejects.toThrow(/Only Admin/);
     for (let n = 1; n <= 3; n++) {
+      if (n > 1) {
+        // Re-delivery after a revision needs a new deliverable.
+        await expect(wi.transitionWorkItem(admin, item.id, "delivered")).rejects.toThrow(/revised file/);
+        await new Promise((r) => setTimeout(r, 5));
+        await wi.addAttachment(admin, item.id, { kind: "deliverable", url: `https://example.com/v${n}.png`, fileName: `v${n}` });
+      }
       await wi.transitionWorkItem(admin, item.id, "delivered");
       const { paidItem } = await wi.requestRevision(clientA, item.id, `change ${n}`);
       if (n <= 2) expect(paidItem).toBeNull();
@@ -195,6 +201,41 @@ describe("portal acceptance (integration)", async () => {
     expect(back?.status).toBe("accepted");
     const again = await billing.generateInvoice(admin, clientBId, week);
     expect(again?.number).not.toBe(inv!.number);
+  });
+
+  it("adjustment lines change totals while open and are refused once payment is submitted", async () => {
+    const week = weekContaining(addDays(istDate(new Date()), -28));
+    const item = await wi.createWorkItem(admin, { clientId: clientBId, type: "image", title: "Adjust me", qty: 1, submit: true });
+    await db.update(schema.workItems).set({ status: "accepted", acceptedAt: new Date(week.cutoff.getTime() - 86_400_000) }).where(eq(schema.workItems.id, item.id));
+    const inv = (await billing.generateInvoice(admin, clientBId, week))!;
+    await billing.addInvoiceAdjustment(admin, inv.id, { description: "Setup fee", amount: 300000 });
+    await billing.addInvoiceAdjustment(admin, inv.id, { description: "Discount", amount: -5000 });
+    let now = await db.query.invoices.findFirst({ where: eq(schema.invoices.id, inv.id) });
+    expect(now!.subtotal).toBe(inv.subtotal + 300000 - 5000);
+    expect(now!.total).toBe(now!.subtotal + now!.tax);
+    await expect(billing.addInvoiceAdjustment(clientB, inv.id, { description: "x", amount: 100 })).rejects.toThrow(/Admin/);
+    await expect(billing.addInvoiceAdjustment(admin, inv.id, { description: "Too much", amount: -10_000_000 })).rejects.toThrow(/below zero/);
+    const disc = (await db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, inv.id))).find((l) => l.description === "Discount")!;
+    await billing.removeInvoiceAdjustment(admin, inv.id, disc.id);
+    now = await db.query.invoices.findFirst({ where: eq(schema.invoices.id, inv.id) });
+    expect(now!.subtotal).toBe(inv.subtotal + 300000);
+    const workLine = (await db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, inv.id))).find((l) => l.kind === "work_item")!;
+    await expect(billing.removeInvoiceAdjustment(admin, inv.id, workLine.id)).rejects.toThrow(/Only adjustment/);
+    await billing.submitPaymentRef(clientB, inv.id, "UTR1");
+    await expect(billing.addInvoiceAdjustment(admin, inv.id, { description: "Late", amount: 100 })).rejects.toThrow(/before the client pays/);
+  });
+
+  it("lead retention anonymises old leads only, once", async () => {
+    const old = new Date();
+    old.setMonth(old.getMonth() - 13);
+    const [oldLead] = await db.insert(schema.leads).values({ clientId: clientAId, name: "Old Person", phone: "+91 9800000001", phoneNormalized: "9800000001", answers: { q: "a" }, source: "test", receivedAt: old }).returning();
+    const [newLead] = await db.insert(schema.leads).values({ clientId: clientAId, name: "New Person", phone: "+91 9800000002", phoneNormalized: "9800000002", answers: { q: "b" }, source: "test" }).returning();
+    expect(await leadsSvc.runLeadRetention()).toBeGreaterThanOrEqual(1);
+    const o = await db.query.leads.findFirst({ where: eq(schema.leads.id, oldLead.id) });
+    const n = await db.query.leads.findFirst({ where: eq(schema.leads.id, newLead.id) });
+    expect(o).toMatchObject({ name: "[erased]", phone: null, phoneNormalized: null, answers: {} });
+    expect(n?.name).toBe("New Person");
+    expect(await leadsSvc.runLeadRetention()).toBe(0);
   });
 
   it("documents: send → viewed → accepted (locked); edit creates a new version", async () => {

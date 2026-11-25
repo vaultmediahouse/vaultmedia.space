@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, isNull, lte } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User, WorkItem, WorkItemType } from "@/db/schema";
 import * as wf from "@/lib/workflow";
@@ -281,11 +281,20 @@ export async function transitionWorkItem(user: User, id: string, to: WorkItem["s
   const now = new Date();
   const patch: Partial<WorkItem> = { status: to, updatedAt: now };
   if (to === "delivered") {
+    // A re-delivery (after a revision request) needs a deliverable added since the last delivery.
     const deliverables = await db.query.attachments.findFirst({
-      where: and(eq(schema.attachments.workItemId, id), eq(schema.attachments.kind, "deliverable")),
+      where: and(
+        eq(schema.attachments.workItemId, id),
+        eq(schema.attachments.kind, "deliverable"),
+        item.deliveredAt ? gt(schema.attachments.createdAt, item.deliveredAt) : undefined,
+      ),
     });
     if (!deliverables && item.type !== "lead_batch") {
-      throw new wf.WorkflowError("Upload the final file or link before marking it delivered.");
+      throw new wf.WorkflowError(
+        item.deliveredAt
+          ? "Upload the revised file or link before marking it delivered again."
+          : "Upload the final file or link before marking it delivered.",
+      );
     }
     patch.deliveredAt = now;
   }

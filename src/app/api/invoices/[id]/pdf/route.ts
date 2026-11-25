@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
@@ -12,7 +12,8 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/invoices/[id]/p
   const inv = await db.query.invoices.findFirst({ where: eq(schema.invoices.id, id) });
   if (!inv || (user.role === "client" && inv.clientId !== user.clientId)) return new Response("Not found", { status: 404 });
   const [lines, client, settings] = await Promise.all([
-    db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)),
+    // Same order as the invoice page: work items, leads, then adjustments.
+    db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(desc(schema.invoiceLines.kind)),
     db.query.clients.findFirst({ where: eq(schema.clients.id, inv.clientId) }),
     getSettings(),
   ]);

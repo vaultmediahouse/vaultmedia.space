@@ -48,7 +48,7 @@ TEST_DATABASE_URL=postgres://USER@localhost:5432/vaultportal_test npm test   # +
 
 ## Scheduled job
 
-`/api/cron/daily` should run once a day at ~09:00 IST. It auto-accepts deliveries, generates last week's invoices (idempotent; effectively Monday) and sends payment reminders on Thursdays.
+`/api/cron/daily` should run once a day at ~09:00 IST. It auto-accepts deliveries, generates last week's invoices (idempotent; effectively Monday), sends payment reminders on Thursdays and anonymises lead personal data older than the retention setting (default 12 months, D-020). Response: `{ ok, autoAccepted, week, invoicesCreated, reminders, leadsErased }`.
 
 - **Vercel:** already configured in `vercel.json` as the schedule `daily-billing` (Vercel Schedules, path target, needs `CRON_SECRET` set in the project). Run it once by hand: `vercel schedules invoke daily-billing`, or Project → Schedules → Run Schedule.
 - **VPS:** crontab / systemd timer calling:
@@ -84,6 +84,14 @@ DATABASE_URL="<production url>" SEED_ADMIN_USERNAME=chief npx tsx scripts/seed.t
 
 ## Current Vercel setup (26 Nov 2026)
 
+**Live:** https://www.vaultmedia.space (apex redirects to `www`; also `vaultmediaspace.vercel.app`). Project settings: framework **Next.js** (also pinned in `vercel.json`; with no framework preset every route returns 404 `NOT_FOUND`), Node 26.x, functions in `sin1`. Production admin `chief` was seeded on 26 Nov with a temporary password (copied to the owner's clipboard, never printed); first sign-in forces a new password. Re-seed is safe (existing users are left unchanged).
+
+To seed or re-run against production from this Mac without printing secrets:
+
+```bash
+vercel env pull /tmp/prod.env --environment production --yes && SEED_ADMIN_USERNAME=chief npx tsx --env-file=/tmp/prod.env scripts/seed.ts; rm -f /tmp/prod.env
+```
+
 Team `vault-media-house`, project `vaultmedia.space`; this Mac is linked (`.vercel/`, gitignored). Resources and env vars: see DECISIONS D-017. Production env: Neon variables (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `POSTGRES_*`, `PG*`), `BLOB_READ_WRITE_TOKEN`, `APP_SECRET`, `CRON_SECRET`, `EMAIL_FROM`, `SEED_ADMIN_USERNAME`. `APP_URL` is unset (links use the Vercel production domain) until a custom domain is added. Never import `.env.local` into Vercel: it holds local-only values.
 
 Add a secret without seeing it (repeat per environment):
@@ -111,6 +119,7 @@ Note: `vercel link`, `vercel blob create-store` and `vercel integration add` (wi
 ## Common tasks
 
 - **Client forgot password:** Admin → Clients → client → Reset password → send the new message.
+- **Add a setup fee / discount to an invoice:** open the invoice → "Add a line" (Charge or Discount). Only before the client pays or submits a payment reference (D-019).
 - **Wrong invoice:** open it → Void invoice (unpaid only) → fix items/leads → Billing → Generate invoices again.
 - **Lead data deletion request:** Admin → Leads → Erase data (invoiced leads keep an anonymised stub for the ledger).
 - **Locked out after failed logins:** wait 15 minutes, or delete recent rows in `login_attempts` for that username.
