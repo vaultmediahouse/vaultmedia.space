@@ -19,6 +19,7 @@ import { formatINR, paiseToRupeesInput } from "@/lib/money";
 import { formatISTDate, formatISTDateTime, istDate } from "@/lib/week";
 import { getRateCard } from "@/server/rate-cards";
 import { latestDocuments, requiredDocsStatus } from "@/server/documents";
+import { DOC_STATE_LABEL } from "@/lib/templates";
 import { openWeekPayable } from "@/server/queries";
 import { sign } from "@/lib/crypto";
 import { CopyButton } from "@/components/copy-button";
@@ -117,14 +118,21 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         </Card>
 
         <Card title={`Required documents (${done}/${checklist.length})`} actions={<LinkButton href={`/admin/documents/new?client=${id}`}>New document</LinkButton>}>
-          <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full bg-emerald-500" style={{ width: `${(done / checklist.length) * 100}%` }} />
-          </div>
+          <p className="mb-2 text-xs text-muted">Which documents apply to this client is set in <Link className="underline" href="/admin/settings#documents">Settings → Documents per client</Link>. The client only sees documents you have sent.</p>
+          {checklist.length > 0 && (
+            <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full bg-emerald-500" style={{ width: `${(done / checklist.length) * 100}%` }} />
+            </div>
+          )}
           <ul className="mb-4 grid gap-1 text-sm sm:grid-cols-2">
             {checklist.map((c) => (
               <li key={c.type} className="flex items-center justify-between gap-2 rounded px-2 py-1 odd:bg-slate-50">
                 <span>{c.label}</span>
-                <Badge tone={c.state === "accepted" ? "green" : c.state === "sent" ? "amber" : c.state === "draft" ? "slate" : "red"}>{c.state}</Badge>
+                {c.state === "missing" ? (
+                  <Link href={`/admin/documents/new?client=${id}&type=${c.type}`} className="text-xs font-medium text-red-700 underline">not created: create</Link>
+                ) : (
+                  <Badge tone={c.state === "accepted" ? "green" : c.state === "sent" ? "amber" : "slate"}>{DOC_STATE_LABEL[c.state]}</Badge>
+                )}
               </li>
             ))}
           </ul>

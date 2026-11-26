@@ -28,7 +28,8 @@ async function run(fn: () => Promise<unknown>, success: string, paths: string[])
     if (e instanceof WorkflowError || e instanceof Error) return fail(e.message);
     throw e;
   }
-  paths.forEach((p) => revalidatePath(p));
+  // Keep both portals in step: whatever one side changes, the other side's lists and home refresh too.
+  [...paths, "/admin/work", "/portal/work", "/admin", "/portal"].forEach((p) => revalidatePath(p));
   return ok(success);
 }
 
@@ -133,7 +134,7 @@ export async function bulkWorkAction(_: ActionState, fd: FormData): Promise<Acti
   const to = str(fd, "bulk") as WorkItemStatus | "approve";
   if (!ids.length) return fail("Select at least one item.");
   const results = await svc.bulkTransition(user, ids, to);
-  revalidatePath(base(user.role));
+  ["/admin/work", "/portal/work", "/admin", "/portal"].forEach((p) => revalidatePath(p));
   const failed = results.filter((r) => !r.ok);
   if (failed.length) return fail(`${results.length - failed.length} updated, ${failed.length} skipped: ${failed[0].error}`);
   return ok(`${results.length} updated.`);

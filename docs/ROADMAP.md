@@ -15,7 +15,8 @@ Ordered by priority. Update this file whenever an item starts or finishes (and P
 8. Statement PDF (all invoices in a date range); ledger CSV covers it for now.
 9. Move the daily job to a private Vercel `function` schedule target (D-014) to drop the public path + `CRON_SECRET`.
 10. Optional: separate Blob store for Preview deployments.
-11. Done 26 Nov 2026: ₹ font in PDFs (D-018), invoice adjustment lines (D-019), lead retention job (D-020).
+11. Done 26 Nov 2026: ₹ font in PDFs (D-018), invoice adjustment lines (D-019), lead retention job (D-020), uploaded documents (D-021), documents per client (D-022), overdue flags + due-date notices.
+12. Front end / public website (Chief to discuss).
 
 ## Phase 3 (PRD §14)
 11. Telegram bot notifications and login.

@@ -16,6 +16,8 @@ PostgreSQL. Schema source of truth: `src/db/schema.ts`. Migrations: `drizzle/` (
 | `comments` | Thread per Work Item | |
 | `leads` | Leads per client | `phone_normalized` (duplicate detection), `answers` jsonb, `status`, `status_changed_at`, `is_duplicate`, `duplicate_of`, `replaces_id`, `replaced_by`, `invoice_id` |
 | `invoices` | Weekly invoices | `number` unique, `week_start`/`week_end`, `subtotal`, `tax_rate_bps`, `tax`, `total`, `status` (sent / payment_submitted / paid / void), `due_date`, `payment_ref`; unique (`client_id`, `week_start`) |
+| `documents` (26 Nov additions) | Uploaded documents | `format` markdown/file, `file_key`, `file_name`, `file_mime` (D-021) |
+| `clients.doc_types` | Documents per client | `doc_type[]`, default all five (D-022) |
 | `invoice_lines` | Invoice lines | `kind` work_item / leads / adjustment (adjustments: Admin charges/discounts, D-019) |
 | `doc_templates` | Markdown templates | `body`, `variables` |
 | `documents` | Client documents, versioned | `group_id` (all versions), `version`, `status`, `share_token`, `sent_at`, `viewed_at`, `accepted_at`, `accepted_ip`, `accepted_name`, `signed_storage_key`, `superseded_by` |
@@ -38,3 +40,8 @@ PostgreSQL. Schema source of truth: `src/db/schema.ts`. Migrations: `drizzle/` (
 | Migration | Date | Change |
 | --- | --- | --- |
 | `0000_init` | 25 Nov 2026 | Initial schema (16 tables) |
+
+## Migrations
+
+- `0000_init.sql` — initial schema (25 Nov 2026).
+- `0001_documents_upload_and_client_doc_types.sql` — 26 Nov 2026: `clients.doc_types`, `documents.format/file_key/file_name/file_mime`. Additive, no data changes; applied automatically by `vercel-build`.

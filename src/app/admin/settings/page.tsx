@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import { asc } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Card, Field, Input, PageHeader, Textarea } from "@/components/ui";
+import { Card, Empty, Field, Input, PageHeader, Table, Td, Textarea, Th } from "@/components/ui";
 import { saveSettingsAction } from "@/actions/admin";
+import { saveClientDocTypesAction } from "@/actions/documents";
+import { DOC_TYPE_LABEL, REQUIRED_DOCS } from "@/lib/templates";
 import { requireAdmin } from "@/lib/auth";
 import { paiseToRupeesInput } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
@@ -12,6 +16,7 @@ export default async function SettingsPage() {
   await requireAdmin();
   const s = await getSettings();
   const r = s.defaultRates;
+  const clients = await db.select().from(schema.clients).orderBy(asc(schema.clients.company));
   return (
     <>
       <PageHeader title="Settings" subtitle="Agency details, tax, invoice numbering, weekly cut-off and default rates for new clients." />
@@ -64,6 +69,34 @@ export default async function SettingsPage() {
         </Card>
         <div className="lg:col-span-2"><SubmitButton>Save settings</SubmitButton></div>
       </ActionForm>
+
+      <Card title="Documents per client" className="mt-8 max-w-5xl">
+        <div id="documents" className="scroll-mt-20" />
+        <p className="mb-3 text-sm text-muted">Tick the documents each client needs. Checklists, progress and the &quot;Still to send&quot; list on the Documents page follow these choices. Clients only ever see documents you have sent them. If Contract or SOW is unticked, it no longer blocks that client&apos;s new work.</p>
+        {clients.length === 0 ? <Empty>No clients yet.</Empty> : (
+          <ActionForm action={saveClientDocTypesAction} className="space-y-3">
+            <Table>
+              <thead><tr><Th>Client</Th>{REQUIRED_DOCS.map((t) => <Th key={t} className="text-center">{DOC_TYPE_LABEL[t]}</Th>)}</tr></thead>
+              <tbody>
+                {clients.map((c) => (
+                  <tr key={c.id}>
+                    <Td>
+                      <input type="hidden" name="clientIds" value={c.id} />
+                      <span className="font-medium">{c.company}</span>{!c.active && <span className="ml-1 text-xs text-muted">(inactive)</span>}
+                    </Td>
+                    {REQUIRED_DOCS.map((t) => (
+                      <Td key={t} className="text-center">
+                        <input type="checkbox" name={`types:${c.id}`} value={t} defaultChecked={c.docTypes.includes(t)} aria-label={`${DOC_TYPE_LABEL[t]} for ${c.company}`} className="h-4 w-4" />
+                      </Td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+            <SubmitButton>Save documents per client</SubmitButton>
+          </ActionForm>
+        )}
+      </Card>
     </>
   );
 }

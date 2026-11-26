@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CopyButton } from "@/components/copy-button";
 import { DocEditor } from "@/components/doc-editor";
+import { DocFileView } from "@/components/doc-file-view";
 import { DocStatus } from "@/components/status";
 import { Card, DL, Input, PageHeader } from "@/components/ui";
 import { documentAction } from "@/actions/documents";
@@ -37,25 +38,42 @@ export default async function AdminDocument({ params }: { params: Promise<{ id: 
       <PageHeader
         title={<span className="flex flex-wrap items-center gap-2">{doc.title} <span className="text-sm font-normal text-muted">v{doc.version}</span> <DocStatus status={doc.status} /></span>}
         subtitle={<><Link className="hover:underline" href={`/admin/clients/${doc.clientId}`}>{client?.company}</Link> · {DOC_TYPE_LABEL[doc.type]}</>}
-        actions={<><Link href="/admin/documents" className="px-2 py-2 text-sm text-muted hover:underline">← Documents</Link><a href={`/api/documents/${doc.id}/pdf`} className="rounded-md border border-border bg-white px-3 py-2 text-sm hover:bg-slate-50">Export PDF</a></>}
+        actions={<><Link href="/admin/documents" className="px-2 py-2 text-sm text-muted hover:underline">← Documents</Link><a href={`/api/documents/${doc.id}/pdf`} className="rounded-md border border-border bg-white px-3 py-2 text-sm hover:bg-slate-50">{doc.format === "file" ? "Download file" : "Export PDF"}</a></>}
       />
       {old && <p className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900">This is an older version. <Link className="underline" href={`/admin/documents/${doc.supersededBy}`}>Open the latest version</Link>.</p>}
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <Card title={locked ? "Signed content (locked)" : "Edit"}>
-          {locked || old ? (
-            <>
+        <div className="space-y-6">
+          <Card title={locked ? "Signed content (locked)" : doc.format === "file" ? "Your uploaded document" : "Edit"}>
+            {doc.format === "file" ? (
+              <DocFileView doc={doc} />
+            ) : locked || old ? (
               <div className="prose-doc" dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.content) }} />
-              {locked && !old && (
-                <details className="mt-6 border-t border-border pt-4">
-                  <summary className="cursor-pointer text-sm font-medium">Make changes (creates version {doc.version + 1})</summary>
-                  <div className="mt-4"><DocEditor mode="document" id={doc.id} title={doc.title} content={doc.content} locked /></div>
-                </details>
-              )}
-            </>
-          ) : (
-            <DocEditor mode="document" id={doc.id} title={doc.title} content={doc.content} />
+            ) : (
+              <DocEditor mode="document" id={doc.id} title={doc.title} content={doc.content} />
+            )}
+            {locked && !old && doc.format === "markdown" && (
+              <details className="mt-6 border-t border-border pt-4">
+                <summary className="cursor-pointer text-sm font-medium">Make changes (creates version {doc.version + 1})</summary>
+                <div className="mt-4"><DocEditor mode="document" id={doc.id} title={doc.title} content={doc.content} locked /></div>
+              </details>
+            )}
+          </Card>
+          {!old && doc.status !== "archived" && (
+            <Card title={doc.format === "file" ? (locked ? `Upload a changed file (creates version ${doc.version + 1})` : "Replace the file") : `Use my own file instead${locked ? ` (creates version ${doc.version + 1})` : ""}`}>
+              <ActionForm action={documentAction} hidden={{ id: doc.id, op: "upload_file" }} resetOnSuccess className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input name="title" defaultValue={doc.title} placeholder="Title" aria-label="Title" />
+                  <Input type="file" name="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required aria-label="Document file" />
+                </div>
+                <p className="text-xs text-muted">
+                  PDF or Word, up to 4 MB. {doc.status === "draft" ? "" : "The document goes back to draft: send it again after uploading. "}
+                  {doc.format === "markdown" ? "The client will see your file instead of the text above." : ""}
+                </p>
+                <SubmitButton variant="secondary">Upload</SubmitButton>
+              </ActionForm>
+            </Card>
           )}
-        </Card>
+        </div>
         <div className="space-y-6">
           <Card title="Status">
             <DL items={[

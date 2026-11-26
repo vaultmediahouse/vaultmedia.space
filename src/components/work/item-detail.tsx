@@ -7,8 +7,8 @@ import { WorkStatus } from "../status";
 import { Badge, Card, DL, Field, Input, PageHeader, Textarea } from "../ui";
 import { workItemAction } from "@/actions/work";
 import { formatINR, paiseToRupeesInput } from "@/lib/money";
-import { formatISTDate, formatISTDateTime } from "@/lib/week";
-import { canTransition, EDITABLE, STATUS_LABEL, TYPE_LABEL } from "@/lib/workflow";
+import { formatISTDate, formatISTDateTime, istDate } from "@/lib/week";
+import { canTransition, EDITABLE, isOverdue, STATUS_LABEL, TYPE_LABEL } from "@/lib/workflow";
 import { signedFileUrl } from "@/lib/storage";
 import { getRateCard } from "@/server/rate-cards";
 
@@ -60,7 +60,9 @@ export async function ItemDetail({ item, user, base }: { item: WorkItem; user: U
               items={[
                 ["Quantity × rate", `${item.qty} × ${formatINR(item.rate)}`],
                 ["Amount", <span key="a" className="text-base">{formatINR(item.amount)}</span>],
-                ["Due date", formatISTDate(item.dueDate)],
+                ["Due date", <span key="due">{formatISTDate(item.dueDate)}{isOverdue(item, istDate(new Date())) && <span className="ml-2"><Badge tone="red">overdue</Badge></span>}</span>],
+                ...(item.deliveredAt ? [["Delivered", formatISTDateTime(item.deliveredAt)] as [string, string]] : []),
+                ...(item.acceptedAt ? [["Accepted", formatISTDateTime(item.acceptedAt)] as [string, string]] : []),
                 ["Created by", `${nameOf(item.createdBy)} · ${formatISTDateTime(item.createdAt)}`],
                 ...(isCreative ? [["Revisions", `${item.revisionCount} used · ${freeLeft} free left (then ${formatINR(rc.revisionRate)} each)`] as [string, string]] : []),
                 ...(item.type === "video" ? [["Max length", `${rc.maxVideoSeconds} seconds`] as [string, string]] : []),

@@ -5,7 +5,7 @@ import { db, schema } from "@/db";
 import { DocStatus } from "@/components/status";
 import { Badge, Card, Empty, LinkButton, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { DOC_TYPE_LABEL } from "@/lib/templates";
+import { DOC_STATE_LABEL, DOC_TYPE_LABEL, REQUIRED_DOCS } from "@/lib/templates";
 import { formatISTDateTime } from "@/lib/week";
 import { requiredDocsStatus } from "@/server/documents";
 
@@ -22,24 +22,64 @@ export default async function AdminDocuments({ searchParams }: { searchParams: P
     .where(and(isNull(schema.documents.supersededBy), sp.client ? eq(schema.documents.clientId, sp.client) : undefined))
     .orderBy(desc(schema.documents.updatedAt));
   const checklists = await Promise.all(clients.map(async (c) => ({ c, items: await requiredDocsStatus(c.id) })));
+  // Admin-only view of what still has to go out (the client portal never shows unsent documents).
+  const drafts = await db
+    .select({ id: schema.documents.id, clientId: schema.documents.clientId, type: schema.documents.type, title: schema.documents.title })
+    .from(schema.documents)
+    .where(and(eq(schema.documents.status, "draft"), isNull(schema.documents.supersededBy)));
+  const pending = checklists.flatMap(({ c, items }) =>
+    items
+      .filter((i) => i.state === "missing" || i.state === "draft")
+      .map((i) => ({ c, i, draft: drafts.find((d) => d.clientId === c.id && d.type === i.type) })),
+  );
 
   return (
     <>
       <PageHeader title="Documents" subtitle="Contracts, SOWs, NDAs, DPAs and deposit invoices — created from templates, sent, tracked and e-accepted." actions={<><LinkButton href="/admin/documents/templates">Templates</LinkButton><LinkButton href="/admin/documents/new" variant="primary">New document</LinkButton></>} />
-      <Card title="Required documents per client" className="mb-6">
+      <Card title={`Still to send (${pending.length})`} className="mb-6" actions={<LinkButton href="/admin/settings#documents">Choose documents per client</LinkButton>}>
+        {pending.length === 0 ? <Empty>Every document that applies to your clients has been sent.</Empty> : (
+          <Table>
+            <thead><tr><Th>Client</Th><Th>Document</Th><Th>State</Th><Th></Th></tr></thead>
+            <tbody>
+              {pending.map(({ c, i, draft }) => (
+                <tr key={`${c.id}-${i.type}`}>
+                  <Td>{c.company}</Td>
+                  <Td>{i.label}</Td>
+                  <Td><Badge tone={i.state === "draft" ? "slate" : "red"}>{DOC_STATE_LABEL[i.state]}</Badge></Td>
+                  <Td className="text-right">
+                    {draft ? (
+                      <Link className="text-sm font-medium underline" href={`/admin/documents/${draft.id}`}>Open draft and send</Link>
+                    ) : (
+                      <Link className="text-sm font-medium underline" href={`/admin/documents/new?client=${c.id}&type=${i.type}`}>Create</Link>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
+      <Card title="Checklist per client" className="mb-6">
         {checklists.length === 0 ? <Empty>No active clients.</Empty> : (
           <Table>
-            <thead><tr><Th>Client</Th>{checklists[0].items.map((i) => <Th key={i.type}>{i.label.split(" ")[0]}</Th>)}<Th>Progress</Th></tr></thead>
+            <thead><tr><Th>Client</Th>{REQUIRED_DOCS.map((t) => <Th key={t}>{DOC_TYPE_LABEL[t].split(" ")[0]}</Th>)}<Th>Progress</Th></tr></thead>
             <tbody>
               {checklists.map(({ c, items }) => {
                 const done = items.filter((i) => i.state === "accepted").length;
                 return (
                   <tr key={c.id}>
                     <Td><Link className="font-medium hover:underline" href={`/admin/documents?client=${c.id}`}>{c.company}</Link>{c.requireDocsBeforeWork && <div className="text-[11px] text-muted">Work blocked until Contract + SOW</div>}</Td>
-                    {items.map((i) => <Td key={i.type}><Badge tone={i.state === "accepted" ? "green" : i.state === "sent" ? "amber" : i.state === "draft" ? "slate" : "red"}>{i.state}</Badge></Td>)}
+                    {REQUIRED_DOCS.map((t) => {
+                      const i = items.find((x) => x.type === t);
+                      return <Td key={t}>{i ? <Badge tone={i.state === "accepted" ? "green" : i.state === "sent" ? "amber" : i.state === "draft" ? "slate" : "red"}>{DOC_STATE_LABEL[i.state]}</Badge> : <span className="text-xs text-muted">n/a</span>}</Td>;
+                    })}
                     <Td>
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${(done / items.length) * 100}%` }} /></div>
-                      <div className="text-xs text-muted">{done}/{items.length}</div>
+                      {items.length > 0 ? (
+                        <>
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${(done / items.length) * 100}%` }} /></div>
+                          <div className="text-xs text-muted">{done}/{items.length}</div>
+                        </>
+                      ) : <span className="text-xs text-muted">none required</span>}
                     </Td>
                   </tr>
                 );

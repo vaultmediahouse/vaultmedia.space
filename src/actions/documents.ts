@@ -16,6 +16,17 @@ import * as docs from "@/server/documents";
 
 const TYPES: DocType[] = ["contract", "sow", "nda", "dpa", "deposit", "other"];
 
+/** Store an uploaded PDF/Word document (max 4 MB) and return its file record. */
+async function storeDocFile(fd: FormData, field: string): Promise<docs.DocFile> {
+  const file = fd.get(field);
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a PDF or Word file to upload.");
+  const ext = file.name.match(/\.([A-Za-z0-9]+)$/)?.[1]?.toLowerCase() ?? "";
+  const mime = docs.DOC_FILE_TYPES[ext];
+  if (!mime) throw new Error("Upload a PDF (.pdf) or Word (.doc, .docx) file.");
+  const { key } = await putFile(file);
+  return { key, name: file.name.slice(0, 200), mime };
+}
+
 export async function createDocumentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const clientId = str(fd, "clientId");
@@ -23,7 +34,13 @@ export async function createDocumentAction(_: ActionState, fd: FormData): Promis
   if (!clientId) return fail("Choose a client.");
   let id: string;
   try {
-    if (templateId) {
+    if (str(fd, "mode") === "upload") {
+      const type = (str(fd, "type") || "other") as DocType;
+      if (!TYPES.includes(type)) return fail("Choose a type.");
+      const file = await storeDocFile(fd, "file");
+      const doc = await docs.createUploaded(admin, clientId, type, str(fd, "title"), file);
+      id = doc.id;
+    } else if (templateId) {
       const deposit = rupeesToPaise(str(fd, "depositAmount"));
       const doc = await docs.createFromTemplate(admin, clientId, templateId, deposit !== null ? { deposit_amount: formatINR(deposit) } : {});
       id = doc.id;
@@ -49,6 +66,13 @@ export async function documentAction(_: ActionState, fd: FormData): Promise<Acti
       if (doc.id !== id) redirect(`/admin/documents/${doc.id}`);
       revalidatePath(`/admin/documents/${id}`);
       return ok("Saved as draft. Send it to the client when ready.");
+    }
+    if (op === "upload_file") {
+      const file = await storeDocFile(fd, "file");
+      const doc = await docs.replaceDocumentFile(admin, id, str(fd, "title").trim() || file.name, file);
+      if (doc.id !== id) redirect(`/admin/documents/${doc.id}`);
+      revalidatePath(`/admin/documents/${id}`);
+      return ok("File uploaded. The document is a draft again: send it when ready.");
     }
     if (op === "send") {
       await docs.sendDocument(admin, id, str(fd, "expiresAt") || null);
@@ -104,4 +128,21 @@ export async function saveTemplateAction(_: ActionState, fd: FormData): Promise<
   await audit({ userId: admin.id, entity: "doc_template", entityId: id, action: "update" });
   revalidatePath(`/admin/documents/templates/${id}`);
   return ok("Template saved. Documents already created are not changed.");
+}
+
+/** Settings → Documents per client: one checkbox per client × document type. */
+export async function saveClientDocTypesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const clientIds = fd.getAll("clientIds").map(String);
+  try {
+    for (const cid of clientIds) {
+      const types = fd.getAll(`types:${cid}`).map(String) as DocType[];
+      await docs.setClientDocTypes(admin, cid, types);
+    }
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/documents");
+  return ok("Saved. Checklists on both portals now use these documents.");
 }

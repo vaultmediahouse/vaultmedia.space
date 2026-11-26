@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — 26 Nov 2026
+Documents you control, per-client document lists, deadlines in step on both portals.
+- **Upload your own documents** (PDF or Word, ≤ 4 MB) instead of writing in the Markdown editor: Documents → New document → "Upload your own document". Any text document can also be switched to an uploaded file ("Use my own file instead"), and an uploaded one can be replaced. Same versioning: editing or replacing a signed document creates a new version; the signed one stays locked. PDFs show inline on both portals; Word files download (D-021).
+- **Settings → Documents per client**: tick which of the five documents each client needs. Checklists, progress counts and the work-block rule (Contract + SOW) follow it; unticked types show "n/a" (D-022).
+- **Client portal hides unsent documents**: the checklist only shows documents that were sent (waiting / accepted). Admin gets a **"Still to send"** list on the Documents page with Create / Open draft links, and clearer states (not created / draft, not sent / sent, waiting / accepted).
+- **Deadlines and deliveries**: Work lists on both portals show a Delivered column and an "overdue" flag (due date passed and not delivered); the item page shows Delivered and Accepted times. Changing a due date notifies the other side. Every work action refreshes both portals' lists and home pages.
+- `X-Frame-Options` is now `SAMEORIGIN` (was `DENY`) so PDFs can be shown inline on our own pages.
+- Migration `0001_documents_upload_and_client_doc_types` (additive columns only).
+- Tests: 52.
+
 ## 0.3.0 — 26 Nov 2026
 Live on Vercel (https://www.vaultmedia.space) and the remaining launch items.
 - **Deployed.** Neon Postgres (prod + separate preview), private Blob store, secrets per environment (D-017). Production admin `chief` seeded. Fix: the Vercel project had no framework preset, so the first successful build served only static files (every page 404 `NOT_FOUND`); framework set to Next.js on the project and pinned in `vercel.json` (`"framework": "nextjs"`).

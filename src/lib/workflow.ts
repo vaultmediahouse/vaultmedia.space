@@ -146,6 +146,14 @@ export function assertTransition(from: WorkItemStatus, to: WorkItemStatus, role:
 }
 
 /** Whether a revision request is free or must be charged (PRD §2.1 rows 1, 2, 4). */
+/** Statuses where work is still owed; a passed due date in these is "overdue". */
+const OPEN_FOR_DELIVERY: WorkItemStatus[] = ["proposed", "sanctioned", "in_progress", "revision_requested"];
+
+/** True when the due date (IST "YYYY-MM-DD") is before today (IST) and the work has not been delivered. */
+export function isOverdue(item: { status: WorkItemStatus; dueDate: string | null }, todayIST: string): boolean {
+  return !!item.dueDate && item.dueDate < todayIST && OPEN_FOR_DELIVERY.includes(item.status);
+}
+
 export function revisionIsFree(revisionCountSoFar: number, freeRevisions: number): boolean {
   return revisionCountSoFar < freeRevisions;
 }

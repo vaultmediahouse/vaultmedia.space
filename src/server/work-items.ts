@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 import { formatINR } from "@/lib/money";
+import { formatISTDate } from "@/lib/week";
 import { getRateCard } from "./rate-cards";
 import { clientIsBlockedByDocs } from "./documents";
 import { clientHasOverdueInvoice } from "./billing";
@@ -271,6 +272,10 @@ export async function editWorkItem(user: User, id: string, input: EditInput) {
   if (termsChanged && item.status !== "draft") {
     // Re-notify both parties (PRD §4 rule 2).
     await notifyBoth(updated, "approval_needed", `Changed, re-approval needed: ${updated.title} (${formatINR(updated.amount)})`);
+  }
+  if ((item.dueDate ?? null) !== (updated.dueDate ?? null) && item.status !== "draft") {
+    // Keep both portals in step on deadlines.
+    await notifyOther(user, updated, "due_date_changed", `Due date ${updated.dueDate ? `now ${formatISTDate(updated.dueDate)}` : "removed"}: ${updated.title}`);
   }
   return updated;
 }

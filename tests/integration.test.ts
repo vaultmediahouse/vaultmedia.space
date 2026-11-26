@@ -113,6 +113,15 @@ describe("portal acceptance (integration)", async () => {
     }
   });
 
+  it("a due-date change notifies the other side and is not a re-approval", async () => {
+    const item = await wi.createWorkItem(admin, { clientId: clientAId, type: "image", title: "Deadline", qty: 1, submit: true });
+    const updated = await wi.editWorkItem(admin, item.id, { title: item.title, brief: item.brief, qty: item.qty, rate: item.rate, dueDate: "2026-12-05" });
+    expect(updated.dueDate).toBe("2026-12-05");
+    expect(updated.adminApprovedAt).not.toBeNull(); // approvals kept
+    const notes = await db.select().from(schema.notifications).where(eq(schema.notifications.userId, clientA.id));
+    expect(notes.some((n) => n.event === "due_date_changed" && n.title.includes("Deadline"))).toBe(true);
+  });
+
   it("auto-sanctions below the client's limit", async () => {
     await db.update(schema.rateCards).set({ autoSanctionLimit: 50000 }).where(eq(schema.rateCards.clientId, clientBId));
     const small = await wi.createWorkItem(clientB, { clientId: clientBId, type: "image", title: "Small", qty: 1, submit: true });
@@ -260,6 +269,39 @@ describe("portal acceptance (integration)", async () => {
     const original = await db.query.documents.findFirst({ where: eq(schema.documents.id, doc.id) });
     expect(original?.status).toBe("accepted");
     expect(original?.content).toBe(accepted.content);
+  });
+
+  it("uploaded documents: draft hidden from client, send, accept, replacing a signed file makes v2", async () => {
+    const file = { key: "testfile0001.pdf", name: "Service Agreement.pdf", mime: "application/pdf" };
+    const doc = await docs.createUploaded(admin, clientAId, "contract", "", file);
+    expect(doc).toMatchObject({ format: "file", fileName: "Service Agreement.pdf", title: "Service Agreement.pdf", status: "draft" });
+    await expect(docs.markViewed(clientA, doc.id)).rejects.toThrow(/not found/);
+    await docs.sendDocument(admin, doc.id, null);
+    await docs.markViewed(clientA, doc.id);
+    await docs.acceptDocument(clientA, doc.id, { typedName: "A user", agreed: true, ip: "1.1.1.1" });
+    const v2 = await docs.replaceDocumentFile(admin, doc.id, "Service Agreement v2", { ...file, key: "testfile0002.pdf" });
+    expect(v2.version).toBe(2);
+    expect(v2.status).toBe("draft");
+    const v1 = await db.query.documents.findFirst({ where: eq(schema.documents.id, doc.id) });
+    expect(v1).toMatchObject({ status: "accepted", fileKey: "testfile0001.pdf", supersededBy: v2.id });
+    // A text document can be switched to an uploaded file, and back to text.
+    const md = await docs.createBlank(admin, clientAId, "other", "Note", "# Hi");
+    const asFile = await docs.replaceDocumentFile(admin, md.id, "Note", { ...file, key: "testfile0003.pdf" });
+    expect(asFile).toMatchObject({ id: md.id, format: "file", content: "" });
+    const back = await docs.saveDocument(admin, md.id, "Note", "# Text again");
+    expect(back).toMatchObject({ format: "markdown", fileKey: null });
+  });
+
+  it("per-client document types drive the checklist and the work block", async () => {
+    await docs.setClientDocTypes(admin, clientAId, ["nda", "dpa"]);
+    const list = await docs.requiredDocsStatus(clientAId);
+    expect(list.map((i) => i.type)).toEqual(["nda", "dpa"]);
+    await db.update(schema.clients).set({ requireDocsBeforeWork: true }).where(eq(schema.clients.id, clientAId));
+    // Contract/SOW do not apply to this client, so they cannot block its work.
+    expect(await docs.clientIsBlockedByDocs(clientAId)).toBe(false);
+    await docs.setClientDocTypes(admin, clientAId, ["contract", "sow", "nda", "dpa", "deposit"]);
+    await db.update(schema.clients).set({ requireDocsBeforeWork: false }).where(eq(schema.clients.id, clientAId));
+    await expect(docs.setClientDocTypes(clientA, clientAId, [])).rejects.toThrow(/Admin/);
   });
 
   it("required-docs rule blocks new work until Contract and SOW are accepted", async () => {

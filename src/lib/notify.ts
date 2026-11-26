@@ -15,6 +15,7 @@ export type NotifyEvent =
   | "item_rejected"
   | "delivery_uploaded"
   | "revision_requested"
+  | "due_date_changed"
   | "item_accepted"
   | "new_leads"
   | "invoice_ready"

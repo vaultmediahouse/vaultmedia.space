@@ -102,6 +102,8 @@ export const clients = pgTable("clients", {
   active: boolean("active").notNull().default(true),
   /** If true, new Work Items are blocked until Contract + SOW are accepted (PRD §7). */
   requireDocsBeforeWork: boolean("require_docs_before_work").notNull().default(false),
+  /** Which document types apply to this client (Settings → Documents per client). Drives the checklist. */
+  docTypes: docTypeEnum("doc_types").array().notNull().default(["contract", "sow", "nda", "dpa", "deposit"]),
   createdAt: createdAt(),
 });
 
@@ -365,7 +367,12 @@ export const documents = pgTable(
     type: docTypeEnum("type").notNull(),
     title: text("title").notNull(),
     version: integer("version").notNull().default(1),
+    /** 'markdown' = written in the portal editor; 'file' = Admin's own uploaded PDF/Word file (D-021). */
+    format: text("format", { enum: ["markdown", "file"] }).notNull().default("markdown"),
     content: text("content").notNull(),
+    fileKey: text("file_key"),
+    fileName: text("file_name"),
+    fileMime: text("file_mime"),
     status: docStatusEnum("status").notNull().default("draft"),
     shareToken: text("share_token").notNull(),
     templateId: uuid("template_id"),

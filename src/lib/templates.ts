@@ -19,6 +19,14 @@ export const DOC_TYPE_LABEL: Record<DocType, string> = {
 /** Documents every client should have accepted (PRD §7 required-docs checklist). */
 export const REQUIRED_DOCS: DocType[] = ["contract", "sow", "nda", "dpa", "deposit"];
 
+/** Admin-side wording for a document checklist state. */
+export const DOC_STATE_LABEL: Record<"accepted" | "sent" | "draft" | "missing", string> = {
+  accepted: "accepted",
+  sent: "sent, waiting",
+  draft: "draft, not sent",
+  missing: "not created",
+};
+
 /** Documents that gate new Work Items when the client's requireDocsBeforeWork rule is on. */
 export const GATING_DOCS: DocType[] = ["contract", "sow"];
 

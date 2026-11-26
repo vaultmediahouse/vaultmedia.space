@@ -7,8 +7,8 @@ import { WorkStatus } from "../status";
 import { Card, Empty, Select, Table, Td, Th } from "../ui";
 import { bulkWorkAction } from "@/actions/work";
 import { formatINR } from "@/lib/money";
-import { BOARD_COLUMNS, STATUS_LABEL, TYPE_LABEL } from "@/lib/workflow";
-import { formatISTDate, weekContaining } from "@/lib/week";
+import { BOARD_COLUMNS, isOverdue, STATUS_LABEL, TYPE_LABEL } from "@/lib/workflow";
+import { formatISTDate, istDate, weekContaining } from "@/lib/week";
 import { getSettings } from "@/lib/settings";
 
 export type WorkFilters = { client?: string; status?: string; type?: string; week?: string; view?: string };
@@ -17,6 +17,7 @@ export type WorkFilters = { client?: string; status?: string; type?: string; wee
 export async function WorkList({ user, base, filters, clients }: { user: User; base: string; filters: WorkFilters; clients?: { id: string; company: string }[] }) {
   const isAdmin = user.role === "admin";
   const { cutoffHour } = await getSettings();
+  const today = istDate(new Date());
   const conds: SQL[] = [];
   const clientId = isAdmin ? filters.client : user.clientId!;
   if (clientId) conds.push(eq(schema.workItems.clientId, clientId));
@@ -109,7 +110,7 @@ export async function WorkList({ user, base, filters, clients }: { user: User; b
               <SubmitButton variant="secondary">Apply</SubmitButton>
             </div>
             <Table>
-              <thead><tr><Th className="w-8"></Th><Th>#</Th><Th>Title</Th>{isAdmin && <Th>Client</Th>}<Th>Type</Th><Th>Qty × rate</Th><Th>Amount</Th><Th>Due</Th><Th>Status</Th></tr></thead>
+              <thead><tr><Th className="w-8"></Th><Th>#</Th><Th>Title</Th>{isAdmin && <Th>Client</Th>}<Th>Type</Th><Th>Qty × rate</Th><Th>Amount</Th><Th>Due</Th><Th>Delivered</Th><Th>Status</Th></tr></thead>
               <tbody>
                 {rows.map(({ item, company }) => (
                   <tr key={item.id} className="hover:bg-slate-50">
@@ -120,7 +121,11 @@ export async function WorkList({ user, base, filters, clients }: { user: User; b
                     <Td>{TYPE_LABEL[item.type]}</Td>
                     <Td className="tabular-nums">{item.qty} × {formatINR(item.rate)}</Td>
                     <Td className="tabular-nums font-medium">{formatINR(item.amount)}</Td>
-                    <Td>{formatISTDate(item.dueDate)}</Td>
+                    <Td className="whitespace-nowrap">
+                      {formatISTDate(item.dueDate)}
+                      {isOverdue(item, today) && <div className="text-xs font-semibold text-red-700">overdue</div>}
+                    </Td>
+                    <Td className="whitespace-nowrap text-xs">{item.deliveredAt ? formatISTDate(item.deliveredAt) : "—"}</Td>
                     <Td><WorkStatus status={item.status} /></Td>
                   </tr>
                 ))}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { DocFileView } from "@/components/doc-file-view";
 import { DocStatus } from "@/components/status";
 import { Card, Input, PageHeader } from "@/components/ui";
 import { acceptDocumentAction } from "@/actions/documents";
@@ -27,11 +28,11 @@ export default async function PortalDocument({ params }: { params: Promise<{ id:
     <>
       <PageHeader
         title={<span className="flex flex-wrap items-center gap-2">{doc.title} <span className="text-sm font-normal text-muted">v{doc.version}</span> <DocStatus status={doc.status} /></span>}
-        actions={<><Link href="/portal/documents" className="px-2 py-2 text-sm text-muted hover:underline">← Documents</Link><a href={`/api/documents/${doc.id}/pdf`} className="rounded-md bg-ink px-3 py-2 text-sm font-medium text-white">Download PDF</a></>}
+        actions={<><Link href="/portal/documents" className="px-2 py-2 text-sm text-muted hover:underline">← Documents</Link><a href={`/api/documents/${doc.id}/pdf`} className="rounded-md bg-ink px-3 py-2 text-sm font-medium text-white">{doc.format === "file" ? "Download" : "Download PDF"}</a></>}
       />
       {doc.supersededBy && <p className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900">A newer version of this document exists.</p>}
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <Card><div className="prose-doc" dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.content) }} /></Card>
+        <Card>{doc.format === "file" ? <DocFileView doc={doc} /> : <div className="prose-doc" dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.content) }} />}</Card>
         <div>
           {canAccept ? (
             <Card title="Accept this document">

@@ -9,15 +9,35 @@ import { DOC_TYPE_LABEL } from "@/lib/templates";
 
 export const metadata: Metadata = { title: "New document" };
 
-export default async function NewDocument({ searchParams }: { searchParams: Promise<{ client?: string }> }) {
+export default async function NewDocument({ searchParams }: { searchParams: Promise<{ client?: string; type?: string }> }) {
   await requireAdmin();
-  const { client } = await searchParams;
+  const { client, type } = await searchParams;
   const clients = await db.select().from(schema.clients).where(eq(schema.clients.active, true));
   const templates = await db.select().from(schema.docTemplates);
   return (
     <>
       <PageHeader title="New document" subtitle="Client details and rates fill in automatically. You can edit everything before sending." />
-      <Card className="max-w-2xl">
+      <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
+      <Card title="Upload your own document" className="h-fit">
+        <ActionForm action={createDocumentAction} hidden={{ mode: "upload" }} className="space-y-4">
+          <Field label="Client">
+            <Select name="clientId" defaultValue={client ?? ""} required>
+              <option value="" disabled>Choose…</option>
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.company}</option>)}
+            </Select>
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Type"><Select name="type" defaultValue={type ?? "contract"}>{Object.entries(DOC_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
+            <Field label="Title" hint="(optional)"><Input name="title" placeholder="e.g. Service Agreement 2026" /></Field>
+          </div>
+          <Field label="File" hint="PDF or Word, up to 4 MB">
+            <Input type="file" name="file" required accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          </Field>
+          <p className="text-xs text-muted">The client sees your file in their portal and accepts it the same way (tick + typed name, time and IP recorded).</p>
+          <SubmitButton>Upload as draft</SubmitButton>
+        </ActionForm>
+      </Card>
+      <Card title="Write it here (template or blank)" className="h-fit">
         <ActionForm action={createDocumentAction} className="space-y-4">
           <Field label="Client">
             <Select name="clientId" defaultValue={client ?? ""} required>
@@ -26,7 +46,7 @@ export default async function NewDocument({ searchParams }: { searchParams: Prom
             </Select>
           </Field>
           <Field label="Template">
-            <Select name="templateId" defaultValue={templates[0]?.id ?? ""}>
+            <Select name="templateId" defaultValue={(type && templates.find((t) => t.type === type)?.id) || templates[0]?.id || ""}>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({DOC_TYPE_LABEL[t.type]})</option>)}
               <option value="">Blank document</option>
             </Select>
@@ -44,6 +64,7 @@ export default async function NewDocument({ searchParams }: { searchParams: Prom
           <SubmitButton>Create draft</SubmitButton>
         </ActionForm>
       </Card>
+      </div>
     </>
   );
 }

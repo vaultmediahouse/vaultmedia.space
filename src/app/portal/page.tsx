@@ -50,7 +50,7 @@ export default async function PortalHome() {
         <Stat label="Payable so far (this week)" value={formatINR(open.itemsAmount + open.leadsAmount)} hint={`${formatINR(open.itemsAmount)} work + ${open.billableLeads} leads`} />
         <Stat label="Unpaid invoices" value={formatINR(unpaid.reduce((s, i) => s + i.total, 0))} hint={`${unpaid.length} invoice(s)`} href="/portal/billing" />
         <Stat label="Leads today" value={leads} hint={`${open.pendingLeads} in 48 h review`} href="/portal/leads" />
-        <Stat label="Documents" value={`${docs.filter((d) => d.state === "accepted").length}/${docs.length}`} hint="accepted" href="/portal/documents" />
+        <Stat label="Documents" value={`${docs.filter((d) => d.state === "accepted").length}/${docs.filter((d) => d.state === "accepted" || d.state === "sent").length}`} hint="accepted of shared" href="/portal/documents" />
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card title={`Needs my approval (${actions.mine.length})`}>

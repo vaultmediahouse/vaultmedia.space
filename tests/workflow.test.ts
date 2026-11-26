@@ -72,3 +72,13 @@ describe("transitions", () => {
     expect(wf.shouldAutoAccept(delivered, new Date("2026-12-22T10:00:00Z"), 0)).toBe(false);
   });
 });
+
+describe("overdue", () => {
+  it("only open work past its due date is overdue", () => {
+    expect(wf.isOverdue({ status: "in_progress", dueDate: "2026-11-20" }, "2026-11-21")).toBe(true);
+    expect(wf.isOverdue({ status: "in_progress", dueDate: "2026-11-21" }, "2026-11-21")).toBe(false);
+    expect(wf.isOverdue({ status: "delivered", dueDate: "2026-11-01" }, "2026-11-21")).toBe(false);
+    expect(wf.isOverdue({ status: "revision_requested", dueDate: "2026-11-01" }, "2026-11-21")).toBe(true);
+    expect(wf.isOverdue({ status: "sanctioned", dueDate: null }, "2026-11-21")).toBe(false);
+  });
+});

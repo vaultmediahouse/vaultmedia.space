@@ -22,16 +22,19 @@ export default async function PortalDocuments() {
     .select()
     .from(schema.documents)
     .where(and(eq(schema.documents.clientId, user.clientId), eq(schema.documents.status, "accepted")));
-  const checklist = await requiredDocsStatus(user.clientId);
+  // Only documents Vault Media House has actually sent appear here; unsent ones stay on the Admin side.
+  const checklist = (await requiredDocsStatus(user.clientId)).filter((c) => c.state === "sent" || c.state === "accepted");
   const all = [...docs, ...oldSigned.filter((o) => !docs.some((d) => d.id === o.id))];
   return (
     <>
       <PageHeader title="Documents" subtitle="Agreements shared by Vault Media House. Review, accept and download them here." />
-      <Card title="Checklist" className="mb-6">
-        <div className="flex flex-wrap gap-2">
-          {checklist.map((c) => <Badge key={c.type} tone={c.state === "accepted" ? "green" : c.state === "sent" ? "amber" : "slate"}>{c.label}: {c.state === "missing" || c.state === "draft" ? "not shared yet" : c.state === "sent" ? "waiting for you" : "accepted"}</Badge>)}
-        </div>
-      </Card>
+      {checklist.length > 0 && (
+        <Card title="Checklist" className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            {checklist.map((c) => <Badge key={c.type} tone={c.state === "accepted" ? "green" : "amber"}>{c.label}: {c.state === "sent" ? "waiting for you" : "accepted"}</Badge>)}
+          </div>
+        </Card>
+      )}
       <Card>
         {all.length === 0 ? <Empty>No documents shared yet.</Empty> : (
           <Table>

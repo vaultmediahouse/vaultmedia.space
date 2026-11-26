@@ -29,7 +29,7 @@ Phase 1 (MVP) is complete, plus most of Phase 2. **Live since 26 Nov 2026 at htt
 | 4 | Work Item, status flow, side states, approval rules, audit with IP, auto-sanction | ✅ | Revision requests beyond the free limit create a paid "Extra revision" item that needs Admin approval. |
 | 5 | Admin dashboard: home, clients, work (table + kanban + filters + bulk), leads, billing, documents, settings | ✅ | |
 | 6 | Client dashboard: home, my work, my leads, billing, documents | ✅ | |
-| 7 | Document Manager: templates with variables, editor + preview, PDF, send, share link, statuses, e-acceptance, versions, required-docs checklist, block-work rule | ✅ | Editor is Markdown with live preview, not WYSIWYG (D-006). Templates need a lawyer's review before real use. |
+| 7 | Document Manager: templates with variables, editor + preview, PDF, send, share link, statuses, e-acceptance, versions, required-docs checklist, block-work rule | ✅ | Editor is Markdown with live preview, not WYSIWYG (D-006), or upload your own PDF/Word file (D-021). Documents per client in Settings; unsent documents hidden from clients (D-022). Templates need a lawyer's review before real use. |
 | 7A | Credentials: no signup, temp password (generated, or chosen by Admin — D-016), forced change, bcrypt, reset/deactivate, rate limit, idle timeout | ✅ | Magic link / Telegram login: ⬜ (optional later). |
 | 8 | Notifications: in-app + email; WhatsApp/Telegram copy-and-send | ✅ | Email needs `RESEND_API_KEY`; otherwise logged to the server console. Telegram bot: ⬜ (v2). |
 | 9 | Data model | ✅ | See [DATABASE.md](DATABASE.md) for additions beyond the PRD. |
@@ -54,6 +54,11 @@ Phase 1 (MVP) is complete, plus most of Phase 2. **Live since 26 Nov 2026 at htt
 - Browser (local): admin sign-in → add client → create login with generated password → client sign-in → forced password change → client dashboard and "Request new work" form; create a second login with an Admin-chosen password. Test data removed afterwards.
 - `/api/cron/daily`: 401 without the secret; `ok: true` with it.
 - Vercel build logs for the failed deployment were **not read** (CLI token invalid on this Mac); the fix is based on reproducing the build locally. Confirm on the next deploy.
+
+## Verified on 26 Nov 2026 (v0.4.0)
+
+- Browser, local: Settings → Documents per client (untick DPA + Deposit) → Documents page shows n/a, progress 1/3 and "Still to send" (Contract, SOW) with Create links; Create → upload form preselects client and type; uploaded a PDF → shown inline on the admin page; sent; client portal checklist shows only sent/accepted documents (unsent SOW hidden); client sees the PDF inline (Viewed), accepts with typed name (locked, "Signed by Demo Staff"); client work list shows the Delivered column.
+- Integration tests: uploaded doc lifecycle incl. new version on replacing a signed file and switching text ↔ file; per-client types drive checklist and work block; due-date change notifies the client and keeps approvals. Unit test for "overdue". 52 tests, typecheck, lint, clean build.
 
 ## Verified on 26 Nov 2026 (v0.3.0)
 
