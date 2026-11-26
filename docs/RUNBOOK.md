@@ -118,6 +118,7 @@ Note: `vercel link`, `vercel blob create-store` and `vercel integration add` (wi
 
 ## Common tasks
 
+- **Chief (admin) forgot password / lost the temporary one:** there is no reset screen for the only admin. From this Mac: pull production env to a temp file (`vercel env pull /tmp/prod.env --environment production --yes`), run a one-off `tsx` script that sets a new bcrypt hash for `chief` with `mustChangePassword = true`, deletes chief's sessions and recent `login_attempts`, and pipes the new password to `pbcopy` (never printed); then delete the temp file and script. Done once on 26 Nov 2026. A second admin account would remove the need for this.
 - **Client forgot password:** Admin → Clients → client → Reset password → send the new message.
 - **Add a setup fee / discount to an invoice:** open the invoice → "Add a line" (Charge or Discount). Only before the client pays or submits a payment reference (D-019).
 - **Wrong invoice:** open it → Void invoice (unpaid only) → fix items/leads → Billing → Generate invoices again.
